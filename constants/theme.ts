@@ -5,8 +5,8 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColorLight = '#D32F2F';
+const tintColorDark = '#EF5350';
 
 export const Colors = {
   light: {
@@ -14,7 +14,7 @@ export const Colors = {
     textSecondary: '#687076',
     background: '#fff',
     surface: '#f9f9f9',
-    primary: '#0056b3',
+    primary: '#D32F2F',
     cardShadow: '#000',
     border: '#e0e0e0',
     tint: tintColorLight,
@@ -27,7 +27,7 @@ export const Colors = {
     textSecondary: '#9BA1A6',
     background: '#151718',
     surface: '#25292e',
-    primary: '#0056b3',
+    primary: '#EF5350',
     cardShadow: '#000',
     border: '#3a3d40',
     tint: tintColorDark,

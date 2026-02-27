@@ -332,16 +332,16 @@ const styles = StyleSheet.create({
     },
     serverSelector: {
         height: 50,
-        backgroundColor: '#e6f0fa',
+        backgroundColor: '#ffebee',
         justifyContent: 'center',
         paddingHorizontal: 12,
         borderWidth: 1,
-        borderColor: '#b3d4ff',
+        borderColor: '#ffcdd2',
         borderTopRightRadius: 8,
         borderBottomRightRadius: 8,
     },
     serverText: {
-        color: '#0056b3',
+        color: '#D32F2F',
         fontWeight: '600',
         fontSize: 14,
     },
@@ -354,14 +354,14 @@ const styles = StyleSheet.create({
         width: 20,
         height: 20,
         borderWidth: 2,
-        borderColor: '#0056b3',
+        borderColor: '#D32F2F',
         borderRadius: 4,
         marginRight: 8,
         justifyContent: 'center',
         alignItems: 'center',
     },
     checkboxChecked: {
-        backgroundColor: '#0056b3',
+        backgroundColor: '#D32F2F',
     },
     checkboxLabel: {
         fontSize: 14,
@@ -369,13 +369,13 @@ const styles = StyleSheet.create({
     },
     primaryButton: {
         height: 50,
-        backgroundColor: '#0056b3',
+        backgroundColor: '#D32F2F',
         borderRadius: 8,
         justifyContent: 'center',
         alignItems: 'center',
     },
     primaryButtonDisabled: {
-        backgroundColor: '#80abda',
+        backgroundColor: '#e57373',
     },
     primaryButtonText: {
         color: '#fff',
