@@ -20,59 +20,59 @@ import { useTheme } from '../../utils/ThemeContext';
 // Temporary demo data for Chrome preview (matches user's actual schedule)
 export const DEMO_DATA = [
     [
-        { "title": "EIN112 - 702 (Ins)", "subject": "EIN112", "room": "702", "professor": "Dr. García", "type": "Cátedra", "block": "1-2", "isFilled": true },
-        { "title": "MAT002 - 710 (Ins)", "subject": "MAT002", "room": "710", "professor": "Prof. Pérez", "type": "Taller", "block": "1-2", "isFilled": true },
-        { "title": "EIN113 - 702 (Ins)", "subject": "EIN113", "room": "702", "professor": "Prof. López", "type": "Cátedra", "block": "1-2", "isFilled": true },
-        { "title": "EIN114 - 703 (Ins)", "subject": "EIN114", "room": "703", "professor": "Dr. Soto", "type": "Laboratorio", "block": "1-2", "isFilled": true },
-        { "title": "[TOPE] EFI100 - EDUCACION FISICA Y DEPORTES / EIN113 - INTRODUCCION A LA INFORMATICA Y COMPUTACION", "subject": "TOPE", "room": "", "professor": "", "type": "Tope", "block": "1-2", "isFilled": true, "topeSubjects": ["EFI100 - EDUCACION FISICA Y DEPORTES", "EIN113 - INTRODUCCION A LA INFORMATICA Y COMPUTACION"] },
-        { "title": "", "isFilled": false }
-    ],
-    [
-        { "title": "EIN112 - 702 (Ins)", "subject": "EIN112", "room": "702", "professor": "Dr. García", "type": "Cátedra", "block": "3-4", "isFilled": true },
-        { "title": "MAT001 - 712 (Ins)", "subject": "MAT001", "room": "712", "professor": "Prof. Martínez", "type": "Cátedra", "block": "3-4", "isFilled": true },
-        { "title": "MAT001 - 712 (Ins)", "subject": "MAT001", "room": "712", "professor": "Prof. Martínez", "type": "Cátedra", "block": "3-4", "isFilled": true },
-        { "title": "HCW100 - 712 (Ins)", "subject": "HCW100", "room": "712", "professor": "Prof. Vargas", "type": "Cátedra", "block": "3-4", "isFilled": true },
-        { "title": "HCW100 - 712 (Ins)", "subject": "HCW100", "room": "712", "professor": "Prof. Vargas", "type": "Cátedra", "block": "3-4", "isFilled": true },
-        { "title": "FGY221 - 705 (Ins)", "subject": "FGY221", "room": "705", "professor": "Prof. Silva", "type": "Cátedra", "block": "3-4", "isFilled": true }
-    ],
-    [
-        { "title": "EIN111 - 702 (Ins)", "subject": "EIN111", "room": "702", "professor": "Dr. Fernández", "type": "Cátedra", "block": "5-6", "isFilled": true },
-        { "title": "HST105 - 704 (Ins)", "subject": "HST105", "room": "704", "professor": "Dr. Morales", "type": "Cátedra", "block": "5-6", "isFilled": true },
-        { "title": "EIN112 - 702 (Ins)", "subject": "EIN112", "room": "702", "professor": "Dr. García", "type": "Cátedra", "block": "5-6", "isFilled": true },
-        { "title": "EIN113 - 703 (Ins)", "subject": "EIN113", "room": "703", "professor": "Prof. López", "type": "Taller", "block": "5-6", "isFilled": true },
-        { "title": "MAT001 - 712 (Ins)", "subject": "MAT001", "room": "712", "professor": "Prof. Martínez", "type": "Cátedra", "block": "5-6", "isFilled": true },
-        { "title": "", "isFilled": false }
-    ],
-    [
-        { "title": "EIN111 - 702 (Ins)", "subject": "EIN111", "room": "702", "professor": "Dr. Fernández", "type": "Cátedra", "block": "7-8", "isFilled": true },
         { "title": "", "isFilled": false },
-        { "title": "EIN112 - 702 (Ins)", "subject": "EIN112", "room": "702", "professor": "Dr. García", "type": "Cátedra", "block": "7-8", "isFilled": true },
         { "title": "", "isFilled": false },
-        { "title": "EIN114 - 703 (Ins)", "subject": "EIN114", "room": "703", "professor": "Dr. Soto", "type": "Laboratorio", "block": "7-8", "isFilled": true },
-        { "title": "", "isFilled": false }
-    ],
-    [
-        { "title": "MAT002 - 710 (Ins)", "subject": "MAT002", "room": "710", "professor": "Prof. Pérez", "type": "Ayudantía", "block": "9-10", "isFilled": true },
         { "title": "", "isFilled": false },
-        { "title": "EIN111 - 706 (Ins)", "subject": "EIN111", "room": "706", "professor": "Dr. Fernández", "type": "Ayudantía", "block": "9-10", "isFilled": true },
         { "title": "", "isFilled": false },
         { "title": "", "isFilled": false },
         { "title": "", "isFilled": false }
     ],
     [
         { "title": "", "isFilled": false },
-        { "title": "EIN113 - 703 (Ins)", "subject": "EIN113", "room": "703", "professor": "Prof. López", "type": "Laboratorio", "block": "11-12", "isFilled": true },
         { "title": "", "isFilled": false },
-        { "title": "MAT002 - 710 (Ins)", "subject": "MAT002", "room": "710", "professor": "Prof. Pérez", "type": "Cátedra", "block": "11-12", "isFilled": true },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
         { "title": "", "isFilled": false },
         { "title": "", "isFilled": false }
     ],
     [
-        { "title": "DIB101 - 801 (Ins)", "subject": "DIB101", "room": "801", "professor": "Prof. Rojas", "type": "Cátedra", "block": "13-14", "isFilled": true },
         { "title": "", "isFilled": false },
         { "title": "", "isFilled": false },
         { "title": "", "isFilled": false },
-        { "title": "DIB101 - 801 (Ins)", "subject": "DIB101", "room": "801", "professor": "Prof. Rojas", "type": "Cátedra", "block": "13-14", "isFilled": true },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false }
+    ],
+    [
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false }
+    ],
+    [
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false }
+    ],
+    [
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false }
+    ],
+    [
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
+        { "title": "", "isFilled": false },
         { "title": "", "isFilled": false }
     ]
 ];

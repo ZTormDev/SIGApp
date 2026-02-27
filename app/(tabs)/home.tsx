@@ -14,18 +14,18 @@ import { DEMO_DATA, TIME_BLOCKS } from './schedule';
 
 // Demo data for Chrome preview
 const DEMO_PROFILE: UserProfile = {
-    fullName: 'SOTO VILLAGRA SEBASTIAN ANDRES',
-    firstName: 'Sebastián',
-    rut: '21.811.976-K',
-    career: 'Téc. Univ. en Informática',
-    campus: 'Concepción',
-    jornada: 'Diurno',
-    rol: '202617434-4',
-    emailUsm: 'ssotovi@usm.cl',
-    emailPersonal: 'sotosebastianv@gmail.com',
-    situation: 'Regular',
-    lastEnrollment: '2026-1',
-    plan: '1720',
+    fullName: '',
+    firstName: '',
+    rut: '',
+    career: '',
+    campus: '',
+    jornada: '',
+    rol: '',
+    emailUsm: '',
+    emailPersonal: '',
+    situation: '',
+    lastEnrollment: '',
+    plan: '',
 };
 
 export default function HomeScreen() {
