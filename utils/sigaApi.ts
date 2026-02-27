@@ -54,6 +54,13 @@ export async function loginToSiga(rut: string, pass: string, server: string): Pr
 }
 
 export function parseHtmlSchedule(html: string): any[] {
+    console.log(`[Schedule Parser] HTML length: ${html.length}`);
+    console.log(`[Schedule Parser] Contains 'Detalle de tope': ${html.includes('Detalle de tope')}`);
+    console.log(`[Schedule Parser] Contains 'tope de horario': ${html.includes('tope de horario')}`);
+    console.log(`[Schedule Parser] Contains '---TOPE---': ${html.includes('---TOPE---')}`);
+    console.log(`[Schedule Parser] Contains 'Detalle de horario': ${html.includes('Detalle de horario')}`);
+    console.log(`[Schedule Parser] HTML last 500 chars:`, html.substring(html.length - 500));
+
     const $ = cheerio.load(html);
 
     if ($('input[name="passwd"]').length > 0) {
@@ -73,7 +80,7 @@ export function parseHtmlSchedule(html: string): any[] {
     $('table tr').each((i, row) => {
         const text = $(row).text();
 
-        if (text.includes('Detalle de tope de horario')) {
+        if (text.includes('tope de horario')) {
             parsingTopes = true;
             return; // skip this row
         }
@@ -138,13 +145,20 @@ export function parseHtmlSchedule(html: string): any[] {
     });
 
     // Second pass: detect topes from the tope detail table
+    // The tope table lists each colliding subject separately with their block numbers.
+    // Blocks can be paired (e.g., "1-2") or individual (e.g., "1", "2").
+    // We need to mark the corresponding matrix cells as TOPE.
     parsingTopes = false;
     currentDayIndex = -1;
+
+    // Track which subjects are in each tope cell to build the collision info
+    const topeCollisions: Record<string, Set<string>> = {};
 
     $('table tr').each((i, row) => {
         const text = $(row).text();
 
-        if (text.includes('Detalle de tope de horario')) {
+        if (text.includes('tope de horario')) {
+            console.log('[TOPE Parser] Found tope section header');
             parsingTopes = true;
             return;
         }
@@ -154,6 +168,7 @@ export function parseHtmlSchedule(html: string): any[] {
         const firstB = $(row).find('b').first().text().trim();
         if (firstB && DAYS.includes(firstB)) {
             currentDayIndex = DAYS.indexOf(firstB);
+            console.log(`[TOPE Parser] Day header: ${firstB}, dayIndex: ${currentDayIndex}`);
             return;
         }
 
@@ -162,13 +177,13 @@ export function parseHtmlSchedule(html: string): any[] {
         const tds = $(row).find('td');
         if (tds.length >= 6) {
             const td0 = $(tds[0]).text().trim();
-            const blockMatch = td0.match(/^[\d-]+/);
+            const blockMatch = td0.match(/^[\d]+(?:-[\d]+)*/);
             if (!blockMatch) return;
 
             const blocksStr = blockMatch[0];
             const blockNums = blocksStr.split('-').map(Number);
 
-            // Extract the subject code from the tope entry (e.g. "EIN113-A - INTRODUCCION...")
+            // Extract the subject code from the tope entry
             let fullTitle = '';
             const fonts = $(tds[1]).find('font');
             if (fonts.length >= 1) {
@@ -177,53 +192,54 @@ export function parseHtmlSchedule(html: string): any[] {
                 fullTitle = $(tds[1]).text().trim();
             }
 
-            // Extract subject code (e.g. "EIN113" from "EIN113-A - INTRODUCCION...")
-            const codeMatch = fullTitle.match(/^([A-Z]{2,}[\d]+)/);
-            const subjectCode = codeMatch ? codeMatch[1] : fullTitle.split(' ')[0];
+            // Extract sigla code (e.g. "EFI100-T" or "EIN113-A")
+            const siglaMatch = fullTitle.match(/^([A-Z]{2,}\d+(?:-[A-Z0-9]+)?)/);
+            const subjectCode = siglaMatch ? siglaMatch[1] : fullTitle.split(' ')[0];
+            // Also extract base code without parallel (e.g. "EFI100" from "EFI100-T")
+            const baseCode = subjectCode.split('-')[0];
 
-            for (let j = 0; j < blockNums.length; j += 2) {
-                const currentBlock = blockNums[j];
-                const matrixRow = Math.floor((currentBlock - 1) / 2);
-                if (matrixRow >= 0 && matrixRow < 7) {
-                    const existing = scheduleMatrix[matrixRow][currentDayIndex];
-                    // Mark this cell as a tope if it's not already
-                    if (existing && existing.isFilled && (existing as any).type !== 'Tope') {
-                        // Convert existing cell to TOPE, storing the colliding subjects
-                        const topeSubjects = [(existing as any).subject || '', subjectCode];
-                        scheduleMatrix[matrixRow][currentDayIndex] = {
-                            title: `[TOPE] ${topeSubjects.join(' / ')}`,
-                            subject: 'TOPE',
-                            room: '',
-                            professor: '',
-                            type: 'Tope',
-                            block: blocksStr,
-                            isFilled: true,
-                            topeSubjects: topeSubjects,
-                        } as any;
-                    } else if (existing && (existing as any).type === 'Tope') {
-                        // Already a TOPE, add this subject to the list
-                        const topeSubjects = (existing as any).topeSubjects || [];
-                        if (!topeSubjects.includes(subjectCode)) {
-                            topeSubjects.push(subjectCode);
-                            (existing as any).title = `[TOPE] ${topeSubjects.join(' / ')}`;
-                        }
-                    } else {
-                        // Cell was empty, create a TOPE cell
-                        scheduleMatrix[matrixRow][currentDayIndex] = {
-                            title: `[TOPE] ${subjectCode}`,
-                            subject: 'TOPE',
-                            room: '',
-                            professor: '',
-                            type: 'Tope',
-                            block: blocksStr,
-                            isFilled: true,
-                            topeSubjects: [subjectCode],
-                        } as any;
-                    }
+            console.log(`[TOPE Parser] Entry: block="${blocksStr}", subject="${baseCode}", title="${fullTitle.substring(0, 50)}"`);
+
+            // For each block number, determine the matrix row and mark as tope
+            for (const blockNum of blockNums) {
+                const matrixRow = Math.floor((blockNum - 1) / 2);
+                if (matrixRow < 0 || matrixRow >= 7) continue;
+
+                const cellKey = `${matrixRow}-${currentDayIndex}`;
+
+                // Track subjects for this tope cell
+                if (!topeCollisions[cellKey]) {
+                    topeCollisions[cellKey] = new Set<string>();
                 }
+                topeCollisions[cellKey].add(baseCode);
+                console.log(`[TOPE Parser] Added ${baseCode} to cell ${cellKey}`);
             }
         }
     });
+
+    console.log(`[TOPE Parser] Total tope collisions found: ${Object.keys(topeCollisions).length}`);
+    for (const [key, subjects] of Object.entries(topeCollisions)) {
+        console.log(`[TOPE Parser] Cell ${key}: ${Array.from(subjects).join(', ')}`);
+    }
+
+    // Now apply the tope markers to the matrix
+    for (const [cellKey, subjects] of Object.entries(topeCollisions)) {
+        const [rowStr, colStr] = cellKey.split('-');
+        const matrixRow = parseInt(rowStr);
+        const dayCol = parseInt(colStr);
+        const topeSubjects = Array.from(subjects);
+
+        scheduleMatrix[matrixRow][dayCol] = {
+            title: `[TOPE] ${topeSubjects.join(' / ')}`,
+            subject: 'TOPE',
+            room: '',
+            professor: '',
+            type: 'Tope',
+            block: '',
+            isFilled: true,
+            topeSubjects: topeSubjects,
+        } as any;
+    }
 
     if (!hasData) {
         console.log("No table data found. Dumping HTML...");
