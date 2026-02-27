@@ -1,15 +1,15 @@
-import { useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { getCredentials, getProfile, getSchedule, hasAcceptedDisclaimer } from '../utils/storage';
 
 export default function IndexScreen() {
-    const router = useRouter();
     const [isReady, setIsReady] = useState(false);
+    const [redirectPath, setRedirectPath] = useState<string | null>(null);
 
     useEffect(() => {
         async function checkAuthState() {
-
+            // Small delay to ensure navigation container is ready
             await new Promise(resolve => setTimeout(resolve, 500));
 
             const { rut } = await getCredentials();
@@ -17,21 +17,20 @@ export default function IndexScreen() {
             const profile = await getProfile();
             const acceptedDisclaimer = await hasAcceptedDisclaimer();
 
-            setIsReady(true);
-
             if (!acceptedDisclaimer) {
-                router.replace('/disclaimer');
+                setRedirectPath('/disclaimer');
             } else if ((schedule || profile) && rut) {
-                router.replace('/(tabs)/home');
+                setRedirectPath('/(tabs)/home');
             } else {
-                router.replace('/login');
+                setRedirectPath('/login');
             }
+            setIsReady(true);
         }
 
         checkAuthState();
-    }, [router]);
+    }, []);
 
-    if (!isReady) {
+    if (!isReady || !redirectPath) {
         return (
             <View style={styles.container}>
                 <ActivityIndicator size="large" color="#0000ff" />
@@ -39,7 +38,7 @@ export default function IndexScreen() {
         );
     }
 
-    return <View style={styles.container} />;
+    return <Redirect href={redirectPath as any} />;
 }
 
 const styles = StyleSheet.create({

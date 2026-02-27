@@ -363,7 +363,7 @@ export default function ScheduleScreen() {
                                                     margin: 0,
                                                 },
                                                 isFilled && color && {
-                                                    backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : color.bg,
+                                                    backgroundColor: color.bg,
                                                     borderLeftWidth: 3,
                                                     borderLeftColor: color.border,
                                                 },
@@ -406,7 +406,7 @@ export default function ScheduleScreen() {
                                         styles.gridCell,
                                         { width: dayColumnWidth, backgroundColor: colors.surface },
                                         isFilled && color && {
-                                            backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : color.bg,
+                                            backgroundColor: color.bg,
                                             borderLeftWidth: 3,
                                             borderLeftColor: color.border,
                                         },

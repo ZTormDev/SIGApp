@@ -1,12 +1,13 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { ThemeProvider as CustomThemeProvider, useTheme } from '../utils/ThemeContext';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: 'index',
 };
 
 function RootNavigator() {
