@@ -24,7 +24,7 @@ export const DEMO_DATA = [
         { "title": "MAT002 - 710 (Ins)", "subject": "MAT002", "room": "710", "professor": "Prof. Pérez", "type": "Taller", "block": "1-2", "isFilled": true },
         { "title": "EIN113 - 702 (Ins)", "subject": "EIN113", "room": "702", "professor": "Prof. López", "type": "Cátedra", "block": "1-2", "isFilled": true },
         { "title": "EIN114 - 703 (Ins)", "subject": "EIN114", "room": "703", "professor": "Dr. Soto", "type": "Laboratorio", "block": "1-2", "isFilled": true },
-        { "title": "[TOPE] EFI100 / EIN113", "subject": "TOPE", "room": "", "professor": "", "type": "Tope", "block": "1-2", "isFilled": true, "topeSubjects": ["EFI100", "EIN113"] },
+        { "title": "[TOPE] EFI100 - EDUCACION FISICA Y DEPORTES / EIN113 - INTRODUCCION A LA INFORMATICA Y COMPUTACION", "subject": "TOPE", "room": "", "professor": "", "type": "Tope", "block": "1-2", "isFilled": true, "topeSubjects": ["EFI100 - EDUCACION FISICA Y DEPORTES", "EIN113 - INTRODUCCION A LA INFORMATICA Y COMPUTACION"] },
         { "title": "", "isFilled": false }
     ],
     [
@@ -150,6 +150,39 @@ export default function ScheduleScreen() {
                         }
                         map[key] = { ...SUBJECT_COLORS[colorIdx % SUBJECT_COLORS.length], name };
                         colorIdx++;
+                    }
+                }
+            }
+        }
+        return map;
+    }, [scheduleData]);
+
+    // Map subject codes (e.g. "EIN113") to display names by scanning all cells
+    const codeToNameMap = useMemo(() => {
+        if (!scheduleData) return {};
+        const map: Record<string, string> = {};
+        for (const row of scheduleData) {
+            for (const cell of row) {
+                if (cell && cell.isFilled && cell.title && cell.type !== 'Tope') {
+                    const t = cell.title || '';
+                    // Extract the base code from the title (e.g. "EIN113" from "EIN113-A - Intro Ingeniería (Cát)")
+                    const codeMatch = t.match(/^([A-Z]{2,}\d+)/);
+                    if (codeMatch) {
+                        const code = codeMatch[1];
+                        if (!map[code]) {
+                            // Try to get the name from the title
+                            const parts = t.split(' - ');
+                            if (parts.length >= 2) {
+                                const extracted = parts.slice(1).join(' - ').replace(/\s*\(.*\)\s*$/, '').trim();
+                                if (extracted && !/^\d+$/.test(extracted)) {
+                                    map[code] = extracted;
+                                }
+                            }
+                            // Also try using cell.subject if it's a meaningful name (not same as code)
+                            if (!map[code] && cell.subject && cell.subject !== code && !/^\d+$/.test(cell.subject)) {
+                                map[code] = cell.subject;
+                            }
+                        }
                     }
                 }
             }
@@ -594,7 +627,7 @@ export default function ScheduleScreen() {
                                 </View>
 
                                 {/* Detail rows */}
-                                <View style={styles.modalBody}>
+                                <ScrollView style={styles.modalBody} contentContainerStyle={{ paddingBottom: 16 }}>
                                     <DetailRow
                                         icon="calendar-outline"
                                         label="Día"
@@ -605,37 +638,41 @@ export default function ScheduleScreen() {
                                         label="Bloque"
                                         value={`${TIME_BLOCKS[selectedBlock.rowIndex]?.label} (${TIME_BLOCKS[selectedBlock.rowIndex]?.start} - ${TIME_BLOCKS[selectedBlock.rowIndex]?.end})`}
                                     />
-                                    <DetailRow
-                                        icon="location-outline"
-                                        label="Sala"
-                                        value={selectedBlock.cell.room || 'Sin asignar'}
-                                    />
-                                    <DetailRow
-                                        icon="person-outline"
-                                        label="Profesor"
-                                        value={selectedBlock.cell.professor || 'Sin asignar'}
-                                    />
+                                    {selectedBlock.cell.type !== 'Tope' && (
+                                        <DetailRow
+                                            icon="location-outline"
+                                            label="Sala"
+                                            value={selectedBlock.cell.room || 'Sin asignar'}
+                                        />
+                                    )}
+                                    {selectedBlock.cell.type !== 'Tope' && (
+                                        <DetailRow
+                                            icon="person-outline"
+                                            label="Profesor"
+                                            value={selectedBlock.cell.professor || 'Sin asignar'}
+                                        />
+                                    )}
                                     <DetailRow
                                         icon="book-outline"
                                         label="Tipo"
                                         value={selectedBlock.cell.type || '—'}
                                     />
                                     {selectedBlock.cell.type === 'Tope' && (
-                                        <View style={styles.topeWarning}>
+                                        <View style={[styles.topeWarning, { backgroundColor: theme === 'dark' ? 'rgba(244, 67, 54, 0.15)' : '#FFEBEE' }]}>
                                             <Ionicons name="warning" size={18} color="#F44336" />
                                             <View style={{ flex: 1, marginLeft: 10 }}>
-                                                <Text style={styles.topeWarningText}>
+                                                <Text style={[styles.topeWarningText, { color: theme === 'dark' ? '#FF8A80' : '#B71C1C' }]}>
                                                     Este bloque tiene un tope de horario
                                                 </Text>
                                                 {selectedBlock.cell.topeSubjects && (
-                                                    <Text style={[styles.topeWarningText, { fontWeight: '400', marginTop: 4 }]}>
+                                                    <Text style={[styles.topeWarningText, { fontWeight: '400', marginTop: 4, color: theme === 'dark' ? '#FF8A80' : '#B71C1C' }]}>
                                                         Asignaturas: {selectedBlock.cell.topeSubjects.join(', ')}
                                                     </Text>
                                                 )}
                                             </View>
                                         </View>
                                     )}
-                                </View>
+                                </ScrollView>
                             </>
                         )}
                     </Pressable>

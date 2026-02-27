@@ -192,11 +192,20 @@ export function parseHtmlSchedule(html: string): any[] {
                 fullTitle = $(tds[1]).text().trim();
             }
 
-            // Extract sigla code (e.g. "EFI100-T" or "EIN113-A")
+            // In the tope section, fullTitle usually looks like "EIN113-A - INTRODUCCION A LA..."
+            // We want to store the base code but also keep the descriptive name if possible.
             const siglaMatch = fullTitle.match(/^([A-Z]{2,}\d+(?:-[A-Z0-9]+)?)/);
             const subjectCode = siglaMatch ? siglaMatch[1] : fullTitle.split(' ')[0];
-            // Also extract base code without parallel (e.g. "EFI100" from "EFI100-T")
             const baseCode = subjectCode.split('-')[0];
+
+            // Extract the actual name:
+            let namePart = '';
+            const parts = fullTitle.split(' - ');
+            if (parts.length >= 2) {
+                namePart = parts.slice(1).join(' - ').replace(/\s*\(.*\)\s*$/, '').trim();
+            }
+            // Store as "CODE - Name" to have the full descriptive title available
+            const subjectDescription = namePart ? `${baseCode} - ${namePart}` : baseCode;
 
             console.log(`[TOPE Parser] Entry: block="${blocksStr}", subject="${baseCode}", title="${fullTitle.substring(0, 50)}"`);
 
@@ -211,8 +220,8 @@ export function parseHtmlSchedule(html: string): any[] {
                 if (!topeCollisions[cellKey]) {
                     topeCollisions[cellKey] = new Set<string>();
                 }
-                topeCollisions[cellKey].add(baseCode);
-                console.log(`[TOPE Parser] Added ${baseCode} to cell ${cellKey}`);
+                topeCollisions[cellKey].add(subjectDescription);
+                console.log(`[TOPE Parser] Added ${subjectDescription} to cell ${cellKey}`);
             }
         }
     });
