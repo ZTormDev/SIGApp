@@ -48,12 +48,8 @@ export default function LoginScreen() {
 
     const handleWebViewSuccess = async (data: { scheduleHtml: string; profileHtml: string }) => {
         try {
-            // Parse schedule
             const scheduleData = parseHtmlSchedule(data.scheduleHtml);
-            // Parse profile
             const profileData = parseProfileHtml(data.profileHtml);
-
-            // Debug: log TOPE cells
             for (let r = 0; r < scheduleData.length; r++) {
                 for (let c = 0; c < scheduleData[r].length; c++) {
                     const cell = scheduleData[r][c] as any;
@@ -148,25 +144,21 @@ export default function LoginScreen() {
                                     value={showPassword ? password : maskedPassword}
                                     onChangeText={(text) => {
                                         if (showPassword) {
-                                            // Plain text mode — just store directly
                                             setPassword(text);
                                             realPasswordRef.current = text;
                                             setMaskedPassword('•'.repeat(text.length));
                                         } else {
-                                            // Masked mode — reconstruct real password from diff
                                             const prev = realPasswordRef.current;
                                             const newLen = text.length;
                                             const prevLen = prev.length;
 
                                             if (newLen > prevLen) {
-                                                // Characters were added — extract the new chars (non-dot chars)
                                                 const added = text.replace(/•/g, '');
                                                 const real = prev + added;
                                                 realPasswordRef.current = real;
                                                 setPassword(real);
                                                 setMaskedPassword('•'.repeat(real.length));
                                             } else {
-                                                // Characters were deleted — trim from the end
                                                 const real = prev.substring(0, newLen);
                                                 realPasswordRef.current = real;
                                                 setPassword(real);

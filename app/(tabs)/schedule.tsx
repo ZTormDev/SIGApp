@@ -17,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getSchedule } from '../../utils/storage';
 import { useTheme } from '../../utils/ThemeContext';
 
-// Temporary demo data for Chrome preview (matches user's actual schedule)
 export const DEMO_DATA = [
     [
         { "title": "", "isFilled": false },
@@ -135,15 +134,12 @@ export default function ScheduleScreen() {
         for (const row of scheduleData) {
             for (const cell of row) {
                 if (cell && cell.isFilled && cell.title) {
-                    // Use cell.subject as the key (e.g. "EIN112", "MAT001")
                     const key = cell.subject || cell.title.split(' ')[0].replace(/[^A-Z0-9]/gi, '');
                     if (key && !map[key] && cell.type !== 'Tope') {
-                        // For the display name, prefer extracting from title if it has the format "CODE - Name (status)"
                         let name = key;
                         const parts = cell.title.split(' - ');
                         if (parts.length >= 2) {
                             const extracted = parts.slice(1).join(' - ').replace(/\s*\(.*\)\s*$/, '').trim();
-                            // Only use extracted name if it's not just a room number
                             if (extracted && !/^\d+$/.test(extracted)) {
                                 name = extracted;
                             }
@@ -157,7 +153,6 @@ export default function ScheduleScreen() {
         return map;
     }, [scheduleData]);
 
-    // Map subject codes (e.g. "EIN113") to display names by scanning all cells
     const codeToNameMap = useMemo(() => {
         if (!scheduleData) return {};
         const map: Record<string, string> = {};
@@ -165,12 +160,10 @@ export default function ScheduleScreen() {
             for (const cell of row) {
                 if (cell && cell.isFilled && cell.title && cell.type !== 'Tope') {
                     const t = cell.title || '';
-                    // Extract the base code from the title (e.g. "EIN113" from "EIN113-A - Intro Ingeniería (Cát)")
                     const codeMatch = t.match(/^([A-Z]{2,}\d+)/);
                     if (codeMatch) {
                         const code = codeMatch[1];
                         if (!map[code]) {
-                            // Try to get the name from the title
                             const parts = t.split(' - ');
                             if (parts.length >= 2) {
                                 const extracted = parts.slice(1).join(' - ').replace(/\s*\(.*\)\s*$/, '').trim();
@@ -178,7 +171,6 @@ export default function ScheduleScreen() {
                                     map[code] = extracted;
                                 }
                             }
-                            // Also try using cell.subject if it's a meaningful name (not same as code)
                             if (!map[code] && cell.subject && cell.subject !== code && !/^\d+$/.test(cell.subject)) {
                                 map[code] = cell.subject;
                             }
@@ -208,8 +200,6 @@ export default function ScheduleScreen() {
         return last;
     }, [scheduleData]);
 
-    // Compute merge map: for each cell [row][col], determine if it should span multiple rows
-    // or be hidden (absorbed into a previous cell's span)
     const mergeMap = useMemo(() => {
         if (!scheduleData) return {};
         const map: Record<string, { span: number; hidden: boolean }> = {};
@@ -222,7 +212,6 @@ export default function ScheduleScreen() {
                 const cell = scheduleData[row]?.[col];
                 const key = `${row}-${col}`;
                 if (cell && cell.isFilled && cell.subject && cell.type !== 'Tope') {
-                    // Count how many consecutive rows have the same subject in this column
                     let span = 1;
                     while (row + span < numRows) {
                         const nextCell = scheduleData[row + span]?.[col];
@@ -233,7 +222,6 @@ export default function ScheduleScreen() {
                         }
                     }
                     map[key] = { span, hidden: false };
-                    // Mark subsequent cells as hidden
                     for (let s = 1; s < span; s++) {
                         map[`${row + s}-${col}`] = { span: 0, hidden: true };
                     }
@@ -251,7 +239,7 @@ export default function ScheduleScreen() {
         if (!scheduleData) return null;
 
         const now = new Date();
-        const dayIndex = now.getDay() - 1; // 0 = Lunes, 5 = Sábado
+        const dayIndex = now.getDay() - 1;
         if (dayIndex < 0 || dayIndex > 5) return { type: 'no-classes', message: '¡Hoy es domingo! Disfruta tu descanso.' };
 
         const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -307,20 +295,17 @@ export default function ScheduleScreen() {
         );
     }
 
-    // 16 = paddingHorizontal (8*2), 44 = time cell width, 12 = cell margins (1px*2 sides * 6 cols)
     const dayColumnWidth = (screenWidth - 16 - 44 - 24) / DAYS.length;
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
             <StatusBar barStyle={theme === 'dark' ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
-            {/* Header */}
             <View style={styles.header}>
                 <Text style={[styles.headerTitle, { color: colors.text }]}>Mi Horario</Text>
                 <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Semestre 2026-1</Text>
             </View>
 
-            {/* Day Headers */}
             <View style={styles.dayHeaderRow}>
                 <View style={styles.timeHeaderCell} />
                 {DAYS.map((day, i) => {
@@ -343,7 +328,6 @@ export default function ScheduleScreen() {
                 })}
             </View>
 
-            {/* Schedule Grid */}
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
@@ -351,7 +335,6 @@ export default function ScheduleScreen() {
             >
                 {scheduleData.slice(0, lastFilledRow + 1).map((row, rowIndex) => (
                     <View key={rowIndex} style={[styles.gridRow, { zIndex: scheduleData.length - rowIndex, overflow: 'visible' }]}>
-                        {/* Time label */}
                         <View style={styles.timeCell}>
                             <Text style={[styles.timeBlockLabel, { color: colors.primary }]}>{TIME_BLOCKS[rowIndex]?.label}</Text>
                             <Text style={[styles.timeText, { color: colors.textSecondary }]}>
@@ -359,12 +342,10 @@ export default function ScheduleScreen() {
                             </Text>
                         </View>
 
-                        {/* Day cells */}
                         {row.map((cell: any, colIndex: number) => {
                             const mergeKey = `${rowIndex}-${colIndex}`;
                             const merge = mergeMap[mergeKey] || { span: 1, hidden: false };
 
-                            // Hidden cells (absorbed into a previous cell's span) - keep width for layout
                             if (merge.hidden) {
                                 return <View key={colIndex} style={{ width: dayColumnWidth, margin: 2 }} />;
                             }
@@ -373,9 +354,7 @@ export default function ScheduleScreen() {
                             const isFilled = cell && cell.isFilled;
                             const span = merge.span;
 
-                            // For merged cells: wrap in a normal-sized container so the row height isn't affected
                             if (span > 1) {
-                                // Height = cell heights + margins + row gaps for spanned rows
                                 const mergedHeight = 56 * span + 4 * span + (span - 1) * 2;
                                 return (
                                     <View key={colIndex} style={{ width: dayColumnWidth, minHeight: 56, margin: 2, overflow: 'visible' }}>
@@ -429,7 +408,6 @@ export default function ScheduleScreen() {
                                 );
                             }
 
-                            // Normal (non-merged) cell
                             return (
                                 <TouchableOpacity
                                     key={colIndex}
@@ -480,7 +458,6 @@ export default function ScheduleScreen() {
                     </View>
                 ))}
 
-                {/* Today's Class Widget */}
                 <View style={styles.todayCardContainer}>
                     <View style={[styles.todayCard, { backgroundColor: colors.surface, shadowColor: colors.cardShadow, borderColor: colors.border, borderWidth: theme === 'dark' ? 1 : 0 }]}>
                         <View style={styles.todayCardHeader}>
@@ -546,7 +523,6 @@ export default function ScheduleScreen() {
                 </View>
             </ScrollView>
 
-            {/* Subject Legend */}
             <View style={[styles.legendContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 32 }}>
                     {Object.entries(subjectColorMap).map(([code, color]) => (
@@ -565,7 +541,6 @@ export default function ScheduleScreen() {
                 />
             </View>
 
-            {/* Block Detail Modal */}
             <Modal
                 visible={!!selectedBlock}
                 transparent
@@ -582,10 +557,8 @@ export default function ScheduleScreen() {
                     >
                         {selectedBlock && (
                             <>
-                                {/* Handle bar */}
                                 <View style={styles.modalHandle} />
 
-                                {/* Header with color accent */}
                                 <View style={[styles.modalHeader, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : selectedBlock.color.bg }]}>
                                     <View style={[styles.modalAccent, { backgroundColor: selectedBlock.color.border }]} />
                                     <View style={styles.modalHeaderContent}>
@@ -626,7 +599,6 @@ export default function ScheduleScreen() {
                                     </TouchableOpacity>
                                 </View>
 
-                                {/* Detail rows */}
                                 <ScrollView style={styles.modalBody} contentContainerStyle={{ paddingBottom: 16 }}>
                                     <DetailRow
                                         icon="calendar-outline"
@@ -849,7 +821,6 @@ const styles = StyleSheet.create({
         width: 80,
     },
 
-    // Modal styles
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.4)',
@@ -958,7 +929,6 @@ const styles = StyleSheet.create({
         marginLeft: 10,
         flex: 1,
     },
-    // Today Card Styles
     todayCardContainer: {
         flex: 1,
         paddingHorizontal: 1,
@@ -973,7 +943,7 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 4 },
         elevation: 3,
-        minHeight: 120, // Minimum height to look card-like
+        minHeight: 120,
     },
     todayCardHeader: {
         flexDirection: 'row',

@@ -9,7 +9,6 @@ export default function IndexScreen() {
 
     useEffect(() => {
         async function checkAuthState() {
-            // Small delay to ensure navigation container is ready
             await new Promise(resolve => setTimeout(resolve, 500));
 
             const { rut } = await getCredentials();

@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// Only import SecureStore on native platforms (it throws on web)
 let SecureStore: any = null;
 if (Platform.OS !== 'web') {
     SecureStore = require('expo-secure-store');
@@ -13,7 +12,6 @@ const SCHEDULE_KEY = 'USER_SCHEDULE';
 const PROFILE_KEY = 'USER_PROFILE';
 const DISCLAIMER_KEY = 'HAS_ACCEPTED_DISCLAIMER';
 
-// Web-compatible wrappers for SecureStore (it's not available on web)
 const secureSetItem = async (key: string, value: string) => {
     if (Platform.OS === 'web' || !SecureStore) {
         await AsyncStorage.setItem(`SECURE_${key}`, value);

@@ -76,16 +76,14 @@ export function parseHtmlSchedule(html: string): any[] {
     let parsingTopes = false;
     let hasData = false;
 
-    // First pass: parse the regular schedule (non-tope entries)
     $('table tr').each((i, row) => {
         const text = $(row).text();
 
         if (text.includes('tope de horario')) {
             parsingTopes = true;
-            return; // skip this row
+            return;
         }
 
-        // Skip tope section rows in the first pass
         if (parsingTopes) return;
 
         const firstB = $(row).find('b').first().text().trim();
@@ -144,14 +142,8 @@ export function parseHtmlSchedule(html: string): any[] {
         }
     });
 
-    // Second pass: detect topes from the tope detail table
-    // The tope table lists each colliding subject separately with their block numbers.
-    // Blocks can be paired (e.g., "1-2") or individual (e.g., "1", "2").
-    // We need to mark the corresponding matrix cells as TOPE.
     parsingTopes = false;
     currentDayIndex = -1;
-
-    // Track which subjects are in each tope cell to build the collision info
     const topeCollisions: Record<string, Set<string>> = {};
 
     $('table tr').each((i, row) => {
@@ -183,7 +175,6 @@ export function parseHtmlSchedule(html: string): any[] {
             const blocksStr = blockMatch[0];
             const blockNums = blocksStr.split('-').map(Number);
 
-            // Extract the subject code from the tope entry
             let fullTitle = '';
             const fonts = $(tds[1]).find('font');
             if (fonts.length >= 1) {
@@ -192,31 +183,24 @@ export function parseHtmlSchedule(html: string): any[] {
                 fullTitle = $(tds[1]).text().trim();
             }
 
-            // In the tope section, fullTitle usually looks like "EIN113-A - INTRODUCCION A LA..."
-            // We want to store the base code but also keep the descriptive name if possible.
             const siglaMatch = fullTitle.match(/^([A-Z]{2,}\d+(?:-[A-Z0-9]+)?)/);
             const subjectCode = siglaMatch ? siglaMatch[1] : fullTitle.split(' ')[0];
             const baseCode = subjectCode.split('-')[0];
-
-            // Extract the actual name:
             let namePart = '';
             const parts = fullTitle.split(' - ');
             if (parts.length >= 2) {
                 namePart = parts.slice(1).join(' - ').replace(/\s*\(.*\)\s*$/, '').trim();
             }
-            // Store as "CODE - Name" to have the full descriptive title available
             const subjectDescription = namePart ? `${baseCode} - ${namePart}` : baseCode;
 
             console.log(`[TOPE Parser] Entry: block="${blocksStr}", subject="${baseCode}", title="${fullTitle.substring(0, 50)}"`);
 
-            // For each block number, determine the matrix row and mark as tope
             for (const blockNum of blockNums) {
                 const matrixRow = Math.floor((blockNum - 1) / 2);
                 if (matrixRow < 0 || matrixRow >= 7) continue;
 
                 const cellKey = `${matrixRow}-${currentDayIndex}`;
 
-                // Track subjects for this tope cell
                 if (!topeCollisions[cellKey]) {
                     topeCollisions[cellKey] = new Set<string>();
                 }
@@ -231,7 +215,6 @@ export function parseHtmlSchedule(html: string): any[] {
         console.log(`[TOPE Parser] Cell ${key}: ${Array.from(subjects).join(', ')}`);
     }
 
-    // Now apply the tope markers to the matrix
     for (const [cellKey, subjects] of Object.entries(topeCollisions)) {
         const [rowStr, colStr] = cellKey.split('-');
         const matrixRow = parseInt(rowStr);

@@ -12,7 +12,6 @@ import { getProfile, getSchedule, UserProfile } from '../../utils/storage';
 import { useTheme } from '../../utils/ThemeContext';
 import { DEMO_DATA, TIME_BLOCKS } from './schedule';
 
-// Demo data for Chrome preview
 const DEMO_PROFILE: UserProfile = {
     fullName: '',
     firstName: '',
@@ -41,14 +40,12 @@ export default function HomeScreen() {
                 getSchedule()
             ]);
 
-            // Validate profile
             if (profileData && (profileData.fullName || profileData.rut || profileData.career)) {
                 setProfile(profileData);
             } else {
                 setProfile(DEMO_PROFILE);
             }
 
-            // Set schedule (fallback to DEMO_DATA)
             setSchedule(scheduleData || DEMO_DATA);
 
             setIsLoading(false);
@@ -91,7 +88,7 @@ export default function HomeScreen() {
         if (!schedule) return null;
 
         const now = new Date();
-        const dayIndex = now.getDay() - 1; // 0 = Lunes, 5 = Sábado
+        const dayIndex = now.getDay() - 1;
         if (dayIndex < 0 || dayIndex > 5) return { type: 'no-classes', message: '¡Hoy es domingo! Disfruta tu descanso.' };
 
         const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -132,7 +129,6 @@ export default function HomeScreen() {
                     onScroll={handleScroll}
                     scrollEventThrottle={16}
                 >
-                    {/* Greeting Header */}
                     <View style={styles.header}>
                         <View>
                             <Text style={[styles.greeting, { color: colors.textSecondary }]}>{getGreeting()},</Text>
@@ -145,7 +141,6 @@ export default function HomeScreen() {
                         </View>
                     </View>
 
-                    {/* Career Card */}
                     <View style={[styles.careerCard, { backgroundColor: colors.primary, shadowColor: colors.primary }]}>
                         <View style={styles.careerCardInner}>
                             <Ionicons name="school" size={28} color="#fff" style={{ marginRight: 12 }} />
@@ -161,7 +156,6 @@ export default function HomeScreen() {
                         </View>
                     </View>
 
-                    {/* Today's Class Card */}
                     <View style={[styles.todayCard, { backgroundColor: colors.surface, shadowColor: colors.cardShadow, borderColor: colors.border, borderWidth: theme === 'dark' ? 1 : 0 }]}>
                         <View style={styles.todayCardHeader}>
                             <Ionicons
@@ -212,7 +206,6 @@ export default function HomeScreen() {
                         )}
                     </View>
 
-                    {/* Info Grid */}
                     <Text style={[styles.sectionTitle, { color: colors.text }]}>Información Personal</Text>
                     <View style={styles.infoGrid}>
                         <InfoCard
@@ -269,7 +262,6 @@ export default function HomeScreen() {
                     <View style={{ height: 40 }} />
                 </ScrollView>
 
-                {/* Permanent scroll hint */}
                 {!isAtBottom && (
                     <View style={styles.scrollHint} pointerEvents="none">
                         <LinearGradient
