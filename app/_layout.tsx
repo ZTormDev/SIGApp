@@ -27,9 +27,12 @@ function RootNavigator() {
   );
 }
 
+import { UpdateChecker } from '../components/UpdateChecker';
+
 export default function RootLayout() {
   return (
     <CustomThemeProvider>
+      <UpdateChecker />
       <RootNavigator />
     </CustomThemeProvider>
   );

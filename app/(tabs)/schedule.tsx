@@ -204,7 +204,7 @@ export default function ScheduleScreen() {
     const dayColumnWidth = (screenWidth - 16 - 44 - 24) / DAYS.length;
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
             <StatusBar barStyle={theme === 'dark' ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
             <View style={styles.header}>

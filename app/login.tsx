@@ -62,7 +62,7 @@ export default function LoginScreen() {
             }
 
             if (rememberMe) {
-                await saveCredentials(rut, password);
+                await saveCredentials(rut, password, server);
             }
             await saveSchedule(scheduleData);
             await saveProfile(profileData);
@@ -208,7 +208,7 @@ export default function LoginScreen() {
                             {isLoading ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text style={styles.primaryButtonText}>Sincronizar Rápido</Text>
+                                <Text style={styles.primaryButtonText}>Iniciar Sesión</Text>
                             )}
                         </TouchableOpacity>
 

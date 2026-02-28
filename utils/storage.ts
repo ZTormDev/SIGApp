@@ -8,6 +8,7 @@ if (Platform.OS !== 'web') {
 
 const RUT_KEY = 'RUT_CREDENTIAL';
 const PWD_KEY = 'PWD_CREDENTIAL';
+const SERVER_KEY = 'SERVER_CREDENTIAL';
 const SCHEDULE_KEY = 'USER_SCHEDULE';
 const PROFILE_KEY = 'USER_PROFILE';
 const DISCLAIMER_KEY = 'HAS_ACCEPTED_DISCLAIMER';
@@ -51,10 +52,11 @@ export interface UserProfile {
     plan: string;
 }
 
-export async function saveCredentials(rut: string, pass: string) {
+export async function saveCredentials(rut: string, pass: string, server: string = 'usm.cl') {
     try {
         await secureSetItem(RUT_KEY, rut);
         await secureSetItem(PWD_KEY, pass);
+        await secureSetItem(SERVER_KEY, server);
     } catch (error) {
         console.error('Error saving credentials:', error);
     }
@@ -64,16 +66,18 @@ export async function getCredentials() {
     try {
         const rut = await secureGetItem(RUT_KEY);
         const pass = await secureGetItem(PWD_KEY);
-        return { rut, pass };
+        const server = await secureGetItem(SERVER_KEY) || 'usm.cl';
+        return { rut, pass, server };
     } catch (error) {
         console.error('Error reading credentials:', error);
-        return { rut: null, pass: null };
+        return { rut: null, pass: null, server: 'usm.cl' };
     }
 }
 
 export async function clearCredentials() {
     await secureDeleteItem(RUT_KEY);
     await secureDeleteItem(PWD_KEY);
+    await secureDeleteItem(SERVER_KEY);
 }
 
 export async function saveSchedule(scheduleData: any) {
