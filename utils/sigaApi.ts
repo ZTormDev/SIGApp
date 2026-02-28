@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio';
+import cheerio from 'react-native-cheerio';
 
 export async function loginToSiga(rut: string, pass: string, server: string): Promise<any[]> {
     try {

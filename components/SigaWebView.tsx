@@ -14,6 +14,7 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
     const webViewRef = useRef<WebView>(null);
     const [step, setStep] = useState(0);
     const completedRef = useRef(false);
+    const htmlDataRef = useRef({ schedule: '', profile: '' });
 
     const handleNavigationStateChange = useCallback((navState: any) => {
         const url = navState.url;
@@ -47,55 +48,63 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
                 return;
             }
             if (url.includes('sistemas') || url.includes('menu')) {
-                console.log("WV: Login OK → Fetching data immediately via XHR...");
+                console.log("WV: Login OK → Navigating to Horario...");
                 setStep(2);
-
-                const fetchBothScript = `
-                    (function() {
-                        function xhrGet(url) {
-                            return new Promise(function(resolve, reject) {
-                                var xhr = new XMLHttpRequest();
-                                xhr.open('GET', url, true);
-                                xhr.onload = function() {
-                                    console.log('XHR ' + url + ' status=' + xhr.status + ' len=' + xhr.responseText.length);
-                                    if (xhr.status >= 200 && xhr.status < 300) {
-                                        if (xhr.responseText.indexOf('name="passwd"') !== -1 || xhr.responseText.indexOf('Sesión Perdida') !== -1) {
-                                            reject('Session expired for: ' + url);
-                                        } else {
-                                            resolve(xhr.responseText);
-                                        }
-                                    } else {
-                                        reject('HTTP ' + xhr.status + ' for: ' + url);
-                                    }
-                                };
-                                xhr.onerror = function() { reject('XHR network error: ' + url); };
-                                xhr.send();
-                            });
-                        }
-
-                        Promise.all([
-                            xhrGet('/pag/sistinsc/listados/insc_ListHorarioPersonal.jsp?tipo_inscripcion=2&profesor=0&ano=2026&semestre=1&m=0'),
-                            xhrGet('/pag/sistinsc/insc_ficha_frame3.jsp')
-                        ])
-                        .then(function(results) {
-                            var scheduleHtml = results[0];
-                            var profileHtml = results[1];
-                            console.log('Schedule len=' + scheduleHtml.length + ' Profile len=' + profileHtml.length);
-                            
-                            var payload = JSON.stringify({
-                                scheduleHtml: scheduleHtml,
-                                profileHtml: profileHtml
-                            });
-                            window.ReactNativeWebView.postMessage('DATA:' + payload);
-                        })
-                        .catch(function(e) {
-                            window.ReactNativeWebView.postMessage('ERROR:Falla XHR: ' + e);
-                        });
-                    })();
+                webViewRef.current?.injectJavaScript(`
+                    window.location.href = '/pag/sistinsc/listados/insc_ListHorarioPersonal.jsp?tipo_inscripcion=2&profesor=0&ano=2026&semestre=1&m=0';
                     true;
-                `;
-                webViewRef.current?.injectJavaScript(fetchBothScript);
+                `);
             }
+        }
+
+        else if (step === 2 && !navState.loading && url.includes('ListHorarioPersonal')) {
+            console.log("WV: Horario Loaded → Extracting and Navigating to Ficha Personal...");
+            setStep(3);
+            webViewRef.current?.injectJavaScript(`
+                setTimeout(function() {
+                    window.ReactNativeWebView.postMessage('STATE:HORARIO:' + document.documentElement.outerHTML);
+                    window.location.href = '/pag/sistinsc/insc_ficha_frameset.jsp';
+                }, 500);
+                true;
+            `);
+        }
+
+        else if (step === 3 && !navState.loading && url.includes('insc_ficha_frameset')) {
+            console.log("WV: Ficha Parent Loaded → Extracting inner frames...");
+            setStep(4);
+            const extractFramesJs = `
+                var attempts = 0;
+                var maxAttempts = 15;
+                var interval = setInterval(function() {
+                    try {
+                        var f2 = window.frames['frame2'];
+                        var f3 = window.frames['frame3'];
+                        
+                        if (f2 && f2.document && f3 && f3.document && 
+                            f2.document.readyState === 'complete' && 
+                            f3.document.readyState === 'complete') {
+                            
+                            var txt2 = f2.document.documentElement.outerHTML;
+                            var txt3 = f3.document.documentElement.outerHTML;
+                            
+                            if (txt2 && txt3 && txt2.length > 500) {
+                                clearInterval(interval);
+                                window.ReactNativeWebView.postMessage('STATE:FICHA:' + txt2 + '\\n\\n' + txt3);
+                                return;
+                            }
+                        }
+                    } catch(e) {
+                        console.log("WV Frame Error:", e);
+                    }
+                    attempts++;
+                    if (attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        window.ReactNativeWebView.postMessage('ERROR:Timeout loading frames');
+                    }
+                }, 1000);
+                true;
+            `;
+            webViewRef.current?.injectJavaScript(extractFramesJs);
         }
     }, [step, rut, pass, server, onCompleted, onError]);
 
@@ -106,14 +115,17 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
         if (msg.startsWith('ERROR:')) {
             completedRef.current = true;
             onError(msg.substring(6));
-        } else if (msg.startsWith('DATA:')) {
-            try {
-                completedRef.current = true;
-                const data = JSON.parse(msg.substring(5));
-                onCompleted(data);
-            } catch (e) {
-                onError('Error parsing data from WebView');
-            }
+        } else if (msg.startsWith('STATE:HORARIO:')) {
+            htmlDataRef.current.schedule = msg.substring(14);
+        } else if (msg.startsWith('STATE:FICHA:')) {
+            htmlDataRef.current.profile = msg.substring(12);
+
+            // All data collected
+            completedRef.current = true;
+            onCompleted({
+                scheduleHtml: htmlDataRef.current.schedule,
+                profileHtml: htmlDataRef.current.profile
+            });
         }
     }, [onCompleted, onError]);
 
