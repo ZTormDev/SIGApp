@@ -35,10 +35,11 @@ export default function LoginScreen() {
     const [errorMsg, setErrorMsg] = useState('');
 
     const [isWebViewActive, setIsWebViewActive] = useState(false);
+    const [step, setStep] = useState<1 | 2>(1);
 
     const handleLoginPress = () => {
-        if (!rut || !password) {
-            setErrorMsg('Por favor, ingresa tu usuario y contraseña.');
+        if (!password) {
+            setErrorMsg('Por favor, ingresa tu contraseña.');
             return;
         }
         setErrorMsg('');
@@ -114,103 +115,138 @@ export default function LoginScreen() {
                         <Text style={styles.title}>SIGApp</Text>
                         <Text style={styles.subtitle}>Inicia sesión para ver tu horario y mas</Text>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Usuario</Text>
-                            <View style={styles.row}>
-                                <TextInput
-                                    style={[styles.input, styles.rutInput]}
-                                    value={rut}
-                                    onChangeText={setRut}
-                                    placeholder="correo institucional"
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                    editable={!isLoading}
-                                />
+                        {step === 1 ? (
+                            <View>
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Usuario</Text>
+                                    <View style={styles.row}>
+                                        <TextInput
+                                            style={[styles.input, styles.rutInput]}
+                                            value={rut}
+                                            onChangeText={setRut}
+                                            placeholder="correo institucional"
+                                            autoCapitalize="none"
+                                            autoCorrect={false}
+                                            editable={!isLoading}
+                                        />
+                                        <TouchableOpacity
+                                            style={styles.serverSelector}
+                                            onPress={toggleServer}
+                                            disabled={isLoading}
+                                        >
+                                            <Text style={styles.serverText}>@{server}</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+
                                 <TouchableOpacity
-                                    style={styles.serverSelector}
-                                    onPress={toggleServer}
-                                    disabled={isLoading}
-                                >
-                                    <Text style={styles.serverText}>@{server}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Contraseña / Clave USM</Text>
-                            <View style={styles.passwordContainer}>
-                                <TextInput
-                                    style={styles.passwordInput}
-                                    value={showPassword ? password : maskedPassword}
-                                    onChangeText={(text) => {
-                                        if (showPassword) {
-                                            setPassword(text);
-                                            realPasswordRef.current = text;
-                                            setMaskedPassword('•'.repeat(text.length));
-                                        } else {
-                                            const prev = realPasswordRef.current;
-                                            const newLen = text.length;
-                                            const prevLen = prev.length;
-
-                                            if (newLen > prevLen) {
-                                                const added = text.replace(/•/g, '');
-                                                const real = prev + added;
-                                                realPasswordRef.current = real;
-                                                setPassword(real);
-                                                setMaskedPassword('•'.repeat(real.length));
-                                            } else {
-                                                const real = prev.substring(0, newLen);
-                                                realPasswordRef.current = real;
-                                                setPassword(real);
-                                                setMaskedPassword('•'.repeat(real.length));
-                                            }
+                                    style={styles.primaryButton}
+                                    onPress={() => {
+                                        if (!rut) {
+                                            setErrorMsg('Por favor, ingresa tu usuario.');
+                                            return;
                                         }
+                                        setErrorMsg('');
+                                        setStep(2);
                                     }}
-                                    placeholder="••••••••"
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                    autoComplete="off"
-                                    contextMenuHidden={true}
-                                    editable={!isLoading}
-                                />
-                                <TouchableOpacity
-                                    style={styles.eyeButton}
-                                    onPress={() => setShowPassword(!showPassword)}
-                                    disabled={isLoading}
                                 >
-                                    <Ionicons
-                                        name={showPassword ? 'eye-off' : 'eye'}
-                                        size={22}
-                                        color="#666"
-                                    />
+                                    <Text style={styles.primaryButtonText}>Siguiente</Text>
                                 </TouchableOpacity>
                             </View>
-                        </View>
+                        ) : (
+                            <View>
+                                <TouchableOpacity
+                                    style={styles.userBadge}
+                                    onPress={() => {
+                                        setStep(1);
+                                        setErrorMsg('');
+                                    }}
+                                    disabled={isLoading}
+                                >
+                                    <Ionicons name="person-circle-outline" size={20} color="#666" />
+                                    <Text style={styles.userBadgeText}>{rut}@{server}</Text>
+                                    <Ionicons name="chevron-down" size={16} color="#666" />
+                                </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={styles.checkboxContainer}
-                            onPress={() => setRememberMe(!rememberMe)}
-                            disabled={isLoading}
-                        >
-                            <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                                {rememberMe && <Ionicons name="checkmark" size={14} color="white" />}
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Contraseña / Clave USM</Text>
+                                    <View style={styles.passwordContainer}>
+                                        <TextInput
+                                            style={styles.passwordInput}
+                                            value={showPassword ? password : maskedPassword}
+                                            onChangeText={(text) => {
+                                                if (showPassword) {
+                                                    setPassword(text);
+                                                    realPasswordRef.current = text;
+                                                    setMaskedPassword('•'.repeat(text.length));
+                                                } else {
+                                                    const prev = realPasswordRef.current;
+                                                    const newLen = text.length;
+                                                    const prevLen = prev.length;
+
+                                                    if (newLen > prevLen) {
+                                                        const added = text.replace(/•/g, '');
+                                                        const real = prev + added;
+                                                        realPasswordRef.current = real;
+                                                        setPassword(real);
+                                                        setMaskedPassword('•'.repeat(real.length));
+                                                    } else {
+                                                        const real = prev.substring(0, newLen);
+                                                        realPasswordRef.current = real;
+                                                        setPassword(real);
+                                                        setMaskedPassword('•'.repeat(real.length));
+                                                    }
+                                                }
+                                            }}
+                                            placeholder="••••••••"
+                                            autoCapitalize="none"
+                                            autoCorrect={false}
+                                            autoComplete="off"
+                                            contextMenuHidden={true}
+                                            editable={!isLoading}
+                                        />
+                                        <TouchableOpacity
+                                            style={styles.eyeButton}
+                                            onPress={() => setShowPassword(!showPassword)}
+                                            disabled={isLoading}
+                                        >
+                                            <Ionicons
+                                                name={showPassword ? 'eye-off' : 'eye'}
+                                                size={22}
+                                                color="#666"
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                <TouchableOpacity
+                                    style={styles.checkboxContainer}
+                                    onPress={() => setRememberMe(!rememberMe)}
+                                    disabled={isLoading}
+                                >
+                                    <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                                        {rememberMe && <Ionicons name="checkmark" size={14} color="white" />}
+                                    </View>
+                                    <Text style={styles.checkboxLabel}>Recordar sesión</Text>
+                                </TouchableOpacity>
+
+                                {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+
+                                <TouchableOpacity
+                                    style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
+                                    onPress={handleLoginPress}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={styles.primaryButtonText}>Iniciar Sesión</Text>
+                                    )}
+                                </TouchableOpacity>
                             </View>
-                            <Text style={styles.checkboxLabel}>Recordar sesión</Text>
-                        </TouchableOpacity>
-
-                        {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
-
-                        <TouchableOpacity
-                            style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
-                            onPress={handleLoginPress}
-                            disabled={isLoading}
-                        >
-                            {isLoading ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <Text style={styles.primaryButtonText}>Iniciar Sesión</Text>
-                            )}
-                        </TouchableOpacity>
+                        )}
 
                         {isWebViewActive && (
                             <SigaWebView
@@ -234,15 +270,19 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
         backgroundColor: '#f4f4f9',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     container: {
-        flex: 1,
         justifyContent: 'center',
+        alignItems: 'center',
         padding: 24,
+        width: '100%',
     },
     logoContainer: {
         alignItems: 'center',
-        marginBottom: 30,
+        position: 'absolute',
+        top: -100,
     },
     logo: {
         width: Dimensions.get('window').width * 0.7,
@@ -257,6 +297,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 10,
         elevation: 8,
+        width: '100%',
     },
     title: {
         fontSize: 28,
@@ -270,6 +311,25 @@ const styles = StyleSheet.create({
         color: '#666',
         textAlign: 'center',
         marginBottom: 32,
+    },
+    userBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f0f0f0',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        alignSelf: 'center',
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    userBadgeText: {
+        fontSize: 14,
+        color: '#333',
+        fontWeight: '500',
+        marginHorizontal: 8,
     },
     inputGroup: {
         marginBottom: 20,
