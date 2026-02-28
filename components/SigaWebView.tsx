@@ -18,7 +18,6 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
 
     const handleNavigationStateChange = useCallback((navState: any) => {
         const url = navState.url;
-        console.log("WV:", step, url, navState.loading ? 'loading' : 'done');
 
         if (!url || completedRef.current) return;
 
@@ -48,7 +47,6 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
                 return;
             }
             if (url.includes('sistemas') || url.includes('menu')) {
-                console.log("WV: Login OK → Navigating to Horario...");
                 setStep(2);
                 webViewRef.current?.injectJavaScript(`
                     window.location.href = '/pag/sistinsc/listados/insc_ListHorarioPersonal.jsp?tipo_inscripcion=2&profesor=0&ano=2026&semestre=1&m=0';
@@ -58,7 +56,6 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
         }
 
         else if (step === 2 && !navState.loading && url.includes('ListHorarioPersonal')) {
-            console.log("WV: Horario Loaded → Extracting and Navigating to Ficha Personal...");
             setStep(3);
             webViewRef.current?.injectJavaScript(`
                 setTimeout(function() {
@@ -70,7 +67,6 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
         }
 
         else if (step === 3 && !navState.loading && url.includes('insc_ficha_frameset')) {
-            console.log("WV: Ficha Parent Loaded → Extracting inner frames...");
             setStep(4);
             const extractFramesJs = `
                 var attempts = 0;
@@ -94,7 +90,7 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
                             }
                         }
                     } catch(e) {
-                        console.log("WV Frame Error:", e);
+                        // ignore errors during polling
                     }
                     attempts++;
                     if (attempts >= maxAttempts) {

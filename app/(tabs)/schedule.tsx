@@ -1,11 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
-    Modal,
-    Pressable,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -14,103 +11,12 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScheduleModal } from '../../components/schedule/ScheduleModal';
+import { DAYS, DEMO_DATA, SelectedBlock, SUBJECT_COLORS, TIME_BLOCKS, TOPE_COLOR } from '../../utils/scheduleConstants';
 import { getSchedule } from '../../utils/storage';
 import { useTheme } from '../../utils/ThemeContext';
 
-export const DEMO_DATA = [
-    [
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false }
-    ],
-    [
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false }
-    ],
-    [
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false }
-    ],
-    [
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false }
-    ],
-    [
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false }
-    ],
-    [
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false }
-    ],
-    [
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false },
-        { "title": "", "isFilled": false }
-    ]
-];
-
-const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const FULL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-export const TIME_BLOCKS = [
-    { label: '1-2', start: '08:15', end: '09:45' },
-    { label: '3-4', start: '10:00', end: '11:30' },
-    { label: '5-6', start: '11:45', end: '13:15' },
-    { label: '7-8', start: '14:15', end: '15:45' },
-    { label: '9-10', start: '16:00', end: '17:30' },
-    { label: '11-12', start: '17:45', end: '19:15' },
-    { label: '13-14', start: '19:30', end: '21:00' },
-];
-
-const SUBJECT_COLORS = [
-    { bg: '#EDE7F6', border: '#7C4DFF', text: '#8f24c1ff' },
-    { bg: '#E3F2FD', border: '#2979FF', text: '#3075ddff' },
-    { bg: '#E8F5E9', border: '#00C853', text: '#34a93cff' },
-    { bg: '#FFF3E0', border: '#FF9100', text: '#E65100' },
-    { bg: '#FCE4EC', border: '#FF4081', text: '#c11e75ff' },
-    { bg: '#E0F7FA', border: '#00BCD4', text: '#006064' },
-    { bg: '#FFF8E1', border: '#FFD600', text: '#F57F17' },
-    { bg: '#F3E5F5', border: '#E040FB', text: '#6A1B9A' },
-    { bg: '#E8EAF6', border: '#536DFE', text: '#1A237E' },
-    { bg: '#EFEBE9', border: '#8D6E63', text: '#3E2723' },
-];
-
-const TOPE_COLOR = { bg: '#FFEBEE', border: '#F44336', text: '#B71C1C' };
-
 const screenWidth = Dimensions.get('window').width;
-
-interface SelectedBlock {
-    cell: any;
-    rowIndex: number;
-    colIndex: number;
-    color: { bg: string; border: string; text: string };
-}
 
 export default function ScheduleScreen() {
     const [scheduleData, setScheduleData] = useState<any[] | null>(null);
@@ -523,153 +429,11 @@ export default function ScheduleScreen() {
                 </View>
             </ScrollView>
 
-            <View style={[styles.legendContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 32 }}>
-                    {Object.entries(subjectColorMap).map(([code, color]) => (
-                        <View key={code} style={[styles.legendItem, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : color.bg }]}>
-                            <View style={[styles.legendDot, { backgroundColor: color.border }]} />
-                            <Text style={[styles.legendText, { color: theme === 'dark' ? colors.text : color.text }]}>{color.name || code}</Text>
-                        </View>
-                    ))}
-                </ScrollView>
-                <LinearGradient
-                    colors={theme === 'dark' ? ['rgba(30, 30, 30, 0)', 'rgba(30, 30, 30, 1)'] : ['rgba(248, 249, 255, 0)', 'rgba(248, 249, 255, 1)']}
-                    start={{ x: 0, y: 0.5 }}
-                    end={{ x: 1, y: 0.5 }}
-                    style={styles.legendFade}
-                    pointerEvents="none"
-                />
-            </View>
-
-            <Modal
-                visible={!!selectedBlock}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setSelectedBlock(null)}
-            >
-                <Pressable
-                    style={styles.modalOverlay}
-                    onPress={() => setSelectedBlock(null)}
-                >
-                    <Pressable
-                        style={[styles.modalSheet, { backgroundColor: colors.surface }]}
-                        onPress={(e) => e.stopPropagation()}
-                    >
-                        {selectedBlock && (
-                            <>
-                                <View style={styles.modalHandle} />
-
-                                <View style={[styles.modalHeader, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : selectedBlock.color.bg }]}>
-                                    <View style={[styles.modalAccent, { backgroundColor: selectedBlock.color.border }]} />
-                                    <View style={styles.modalHeaderContent}>
-                                        <Text style={[styles.modalSubjectCode, { color: theme === 'dark' ? colors.text : selectedBlock.color.text }]}>
-                                            {(() => {
-                                                if (selectedBlock.cell.type === 'Tope') {
-                                                    return 'TOPE DE HORARIO';
-                                                }
-                                                const t = selectedBlock.cell.title || '';
-                                                const parts = t.split(' - ');
-                                                if (parts.length >= 2) {
-                                                    return parts.slice(1).join(' - ').replace(/\s*\(.*\)\s*$/, '').toUpperCase();
-                                                }
-                                                return t.split(' ')[0];
-                                            })()}
-                                        </Text>
-                                        <Text style={[styles.modalSubjectTitle, { color: colors.textSecondary }]}>
-                                            {(() => {
-                                                if (selectedBlock.cell.type === 'Tope' && selectedBlock.cell.topeSubjects) {
-                                                    return `Colisión: ${selectedBlock.cell.topeSubjects.join(' / ')}`;
-                                                }
-                                                const t = selectedBlock.cell.title || '';
-                                                const parts = t.split(' - ');
-                                                if (parts.length >= 2) {
-                                                    const code = parts[0].trim();
-                                                    const name = parts.slice(1).join(' - ').replace(/\s*\(.*\)\s*$/, '').toUpperCase();
-                                                    return `${code} - ${name}`;
-                                                }
-                                                return t;
-                                            })()}
-                                        </Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        style={[styles.modalCloseBtn, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}
-                                        onPress={() => setSelectedBlock(null)}
-                                    >
-                                        <Ionicons name="close" size={22} color={colors.textSecondary} />
-                                    </TouchableOpacity>
-                                </View>
-
-                                <ScrollView style={styles.modalBody} contentContainerStyle={{ paddingBottom: 16 }}>
-                                    <DetailRow
-                                        icon="calendar-outline"
-                                        label="Día"
-                                        value={FULL_DAYS[selectedBlock.colIndex] || '—'}
-                                    />
-                                    <DetailRow
-                                        icon="time-outline"
-                                        label="Bloque"
-                                        value={`${TIME_BLOCKS[selectedBlock.rowIndex]?.label} (${TIME_BLOCKS[selectedBlock.rowIndex]?.start} - ${TIME_BLOCKS[selectedBlock.rowIndex]?.end})`}
-                                    />
-                                    {selectedBlock.cell.type !== 'Tope' && (
-                                        <DetailRow
-                                            icon="location-outline"
-                                            label="Sala"
-                                            value={selectedBlock.cell.room || 'Sin asignar'}
-                                        />
-                                    )}
-                                    {selectedBlock.cell.type !== 'Tope' && (
-                                        <DetailRow
-                                            icon="person-outline"
-                                            label="Profesor"
-                                            value={selectedBlock.cell.professor || 'Sin asignar'}
-                                        />
-                                    )}
-                                    <DetailRow
-                                        icon="book-outline"
-                                        label="Tipo"
-                                        value={selectedBlock.cell.type || '—'}
-                                    />
-                                    {selectedBlock.cell.type === 'Tope' && (
-                                        <View style={[styles.topeWarning, { backgroundColor: theme === 'dark' ? 'rgba(244, 67, 54, 0.15)' : '#FFEBEE' }]}>
-                                            <Ionicons name="warning" size={18} color="#F44336" />
-                                            <View style={{ flex: 1, marginLeft: 10 }}>
-                                                <Text style={[styles.topeWarningText, { color: theme === 'dark' ? '#FF8A80' : '#B71C1C' }]}>
-                                                    Este bloque tiene un tope de horario
-                                                </Text>
-                                                {selectedBlock.cell.topeSubjects && (
-                                                    <Text style={[styles.topeWarningText, { fontWeight: '400', marginTop: 4, color: theme === 'dark' ? '#FF8A80' : '#B71C1C' }]}>
-                                                        Asignaturas: {selectedBlock.cell.topeSubjects.join(', ')}
-                                                    </Text>
-                                                )}
-                                            </View>
-                                        </View>
-                                    )}
-                                </ScrollView>
-                            </>
-                        )}
-                    </Pressable>
-                </Pressable>
-            </Modal>
+            <ScheduleModal
+                selectedBlock={selectedBlock}
+                onClose={() => setSelectedBlock(null)}
+            />
         </SafeAreaView>
-    );
-}
-
-function DetailRow({ icon, label, value }: {
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    value: string;
-}) {
-    const { colors, theme } = useTheme();
-    return (
-        <View style={[styles.detailRow, { borderBottomColor: colors.border }]}>
-            <View style={[styles.detailIconContainer, { backgroundColor: theme === 'dark' ? 'rgba(157, 122, 255, 0.15)' : '#f0ecff' }]}>
-                <Ionicons name={icon} size={20} color={colors.primary} />
-            </View>
-            <View style={styles.detailContent}>
-                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>{label}</Text>
-                <Text style={[styles.detailValue, { color: colors.text }]}>{value}</Text>
-            </View>
-        </View>
     );
 }
 
@@ -699,7 +463,7 @@ const styles = StyleSheet.create({
     },
     header: {
         paddingHorizontal: 16,
-        paddingBottom: 12,
+        paddingBottom: 32,
         paddingTop: 16,
     },
     headerTitle: {
@@ -717,6 +481,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         paddingHorizontal: 8,
         marginBottom: 4,
+        gap: 4,
     },
     timeHeaderCell: {
         width: 44,
@@ -787,38 +552,6 @@ const styles = StyleSheet.create({
         fontSize: 9,
         color: '#999',
         marginTop: 2,
-    },
-    legendContainer: {
-        paddingHorizontal: 0,
-        paddingVertical: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#eee',
-        backgroundColor: '#fff',
-    },
-    legendItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 20,
-        marginRight: 8,
-    },
-    legendDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        marginRight: 6,
-    },
-    legendText: {
-        fontSize: 12,
-        fontWeight: '700',
-    },
-    legendFade: {
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: 80,
     },
 
     modalOverlay: {
@@ -936,14 +669,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     todayCard: {
-        flex: 1,
         borderRadius: 16,
         padding: 20,
         shadowOpacity: 0.05,
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 4 },
         elevation: 3,
-        minHeight: 120,
+        minHeight: 220,
     },
     todayCardHeader: {
         flexDirection: 'row',

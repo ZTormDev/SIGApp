@@ -54,13 +54,6 @@ export async function loginToSiga(rut: string, pass: string, server: string): Pr
 }
 
 export function parseHtmlSchedule(html: string): any[] {
-    console.log(`[Schedule Parser] HTML length: ${html.length}`);
-    console.log(`[Schedule Parser] Contains 'Detalle de tope': ${html.includes('Detalle de tope')}`);
-    console.log(`[Schedule Parser] Contains 'tope de horario': ${html.includes('tope de horario')}`);
-    console.log(`[Schedule Parser] Contains '---TOPE---': ${html.includes('---TOPE---')}`);
-    console.log(`[Schedule Parser] Contains 'Detalle de horario': ${html.includes('Detalle de horario')}`);
-    console.log(`[Schedule Parser] HTML last 500 chars:`, html.substring(html.length - 500));
-
     const $ = cheerio.load(html);
 
     if ($('input[name="passwd"]').length > 0) {
@@ -76,7 +69,7 @@ export function parseHtmlSchedule(html: string): any[] {
     let parsingTopes = false;
     let hasData = false;
 
-    $('table tr').each((i, row) => {
+    $('table tr').each((i: any, row: any) => {
         const text = $(row).text();
 
         if (text.includes('tope de horario')) {
@@ -146,11 +139,10 @@ export function parseHtmlSchedule(html: string): any[] {
     currentDayIndex = -1;
     const topeCollisions: Record<string, Set<string>> = {};
 
-    $('table tr').each((i, row) => {
+    $('table tr').each((i: any, row: any) => {
         const text = $(row).text();
 
         if (text.includes('tope de horario')) {
-            console.log('[TOPE Parser] Found tope section header');
             parsingTopes = true;
             return;
         }
@@ -160,7 +152,6 @@ export function parseHtmlSchedule(html: string): any[] {
         const firstB = $(row).find('b').first().text().trim();
         if (firstB && DAYS.includes(firstB)) {
             currentDayIndex = DAYS.indexOf(firstB);
-            console.log(`[TOPE Parser] Day header: ${firstB}, dayIndex: ${currentDayIndex}`);
             return;
         }
 
@@ -193,8 +184,6 @@ export function parseHtmlSchedule(html: string): any[] {
             }
             const subjectDescription = namePart ? `${baseCode} - ${namePart}` : baseCode;
 
-            console.log(`[TOPE Parser] Entry: block="${blocksStr}", subject="${baseCode}", title="${fullTitle.substring(0, 50)}"`);
-
             for (const blockNum of blockNums) {
                 const matrixRow = Math.floor((blockNum - 1) / 2);
                 if (matrixRow < 0 || matrixRow >= 7) continue;
@@ -205,15 +194,9 @@ export function parseHtmlSchedule(html: string): any[] {
                     topeCollisions[cellKey] = new Set<string>();
                 }
                 topeCollisions[cellKey].add(subjectDescription);
-                console.log(`[TOPE Parser] Added ${subjectDescription} to cell ${cellKey}`);
             }
         }
     });
-
-    console.log(`[TOPE Parser] Total tope collisions found: ${Object.keys(topeCollisions).length}`);
-    for (const [key, subjects] of Object.entries(topeCollisions)) {
-        console.log(`[TOPE Parser] Cell ${key}: ${Array.from(subjects).join(', ')}`);
-    }
 
     for (const [cellKey, subjects] of Object.entries(topeCollisions)) {
         const [rowStr, colStr] = cellKey.split('-');
