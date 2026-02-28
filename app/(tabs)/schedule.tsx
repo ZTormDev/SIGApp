@@ -10,6 +10,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScheduleModal } from '../../components/schedule/ScheduleModal';
 import { DAYS, DEMO_DATA, SelectedBlock, SUBJECT_COLORS, TIME_BLOCKS, TOPE_COLOR } from '../../utils/scheduleConstants';
@@ -207,10 +208,10 @@ export default function ScheduleScreen() {
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
             <StatusBar barStyle={theme === 'dark' ? "light-content" : "dark-content"} backgroundColor={colors.background} />
 
-            <View style={styles.header}>
+            <Animated.View entering={FadeInDown.duration(400).delay(100).springify()} style={styles.header}>
                 <Text style={[styles.headerTitle, { color: colors.text }]}>Mi Horario</Text>
                 <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Semestre 2026-1</Text>
-            </View>
+            </Animated.View>
 
             <View style={styles.dayHeaderRow}>
                 <View style={styles.timeHeaderCell} />
@@ -240,7 +241,11 @@ export default function ScheduleScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 {scheduleData.slice(0, lastFilledRow + 1).map((row, rowIndex) => (
-                    <View key={rowIndex} style={[styles.gridRow, { zIndex: scheduleData.length - rowIndex, overflow: 'visible' }]}>
+                    <Animated.View
+                        key={rowIndex}
+                        style={[styles.gridRow, { zIndex: scheduleData.length - rowIndex, overflow: 'visible' }]}
+                        entering={FadeInDown.duration(400).delay(200 + (rowIndex * 50))}
+                    >
                         <View style={styles.timeCell}>
                             <Text style={[styles.timeBlockLabel, { color: colors.primary }]}>{TIME_BLOCKS[rowIndex]?.label}</Text>
                             <Text style={[styles.timeText, { color: colors.textSecondary }]}>
@@ -289,9 +294,12 @@ export default function ScheduleScreen() {
                                         >
                                             {isFilled && color && (
                                                 <>
+                                                    <Text style={[styles.cellSubjectCode, { color: color.text, fontSize: 9, opacity: 0.8, marginBottom: 1, fontWeight: '600' }]} numberOfLines={1}>
+                                                        {cell.title?.split(' - ')[0]}
+                                                    </Text>
                                                     <Text
                                                         style={[styles.cellSubjectCode, { color: color.text }]}
-                                                        numberOfLines={2}
+                                                        numberOfLines={1}
                                                     >
                                                         {(() => {
                                                             const t = cell.title || '';
@@ -331,13 +339,16 @@ export default function ScheduleScreen() {
                                 >
                                     {isFilled && color && (
                                         <>
+                                            <Text style={[styles.cellSubjectCode, { color: color.text, fontSize: 8, opacity: 0.8, marginBottom: 0, fontWeight: '600' }]} numberOfLines={1}>
+                                                {(cell.type === 'Tope' ? '[TOPE]' : cell.title?.split(' - ')[0])}
+                                            </Text>
                                             <Text
                                                 style={[styles.cellSubjectCode, { color: color.text }]}
                                                 numberOfLines={1}
                                             >
                                                 {(() => {
                                                     if (cell.type === 'Tope' || cell.subject === 'TOPE') {
-                                                        return '[TOPE]';
+                                                        return 'HORARIO';
                                                     }
                                                     const t = cell.title || '';
                                                     const parts = t.split(' - ');
@@ -361,11 +372,11 @@ export default function ScheduleScreen() {
                                 </TouchableOpacity>
                             );
                         })}
-                    </View>
+                    </Animated.View>
                 ))}
 
-                <View style={styles.todayCardContainer}>
-                    <View style={[styles.todayCard, { backgroundColor: colors.surface, shadowColor: colors.cardShadow, borderColor: colors.border, borderWidth: theme === 'dark' ? 1 : 0 }]}>
+                <Animated.View entering={FadeInUp.duration(500).delay(400).springify()} style={[styles.todayCardContainer, { backgroundColor: 'transparent' }]}>
+                    <View style={[styles.todayCard, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: theme === 'dark' ? 1 : 0 }]}>
                         <View style={styles.todayCardHeader}>
                             <Ionicons
                                 name={todayClassInfo?.type === 'no-classes' ? "calendar-clear" : "time"}
@@ -426,7 +437,7 @@ export default function ScheduleScreen() {
                             </View>
                         )}
                     </View>
-                </View>
+                </Animated.View>
             </ScrollView>
 
             <ScheduleModal
@@ -671,10 +682,6 @@ const styles = StyleSheet.create({
     todayCard: {
         borderRadius: 16,
         padding: 20,
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 3,
         minHeight: 220,
     },
     todayCardHeader: {

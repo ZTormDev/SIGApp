@@ -37,11 +37,6 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 20,
         marginBottom: 16,
-        shadowColor: '#7C4DFF',
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 6 },
-        elevation: 8,
     },
     careerCardInner: {
         flexDirection: 'row',

@@ -7,6 +7,7 @@ import {
     Text,
     View,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { InfoCard } from '../../components/home/InfoCard';
 import { ProfileCard } from '../../components/home/ProfileCard';
@@ -128,74 +129,86 @@ export default function HomeScreen() {
                     onScroll={handleScroll}
                     scrollEventThrottle={16}
                 >
-                    <View style={styles.header}>
-                        <View>
-                            <Text style={[styles.greeting, { color: colors.textSecondary }]}>{getGreeting()},</Text>
-                            <Text style={[styles.name, { color: colors.text }]}>{profile.firstName} 👋</Text>
+                    <Animated.View entering={FadeInDown.duration(500).delay(100).springify()}>
+                        <View style={styles.header}>
+                            <View>
+                                <Text style={[styles.greeting, { color: colors.textSecondary }]}>{getGreeting()},</Text>
+                                <Text style={[styles.name, { color: colors.text }]}>{profile.firstName} 👋</Text>
+                            </View>
+                            <View style={[styles.avatarCircle, { backgroundColor: colors.primary, shadowColor: colors.primary }]}>
+                                <Text style={styles.avatarText}>
+                                    {profile.firstName.charAt(0).toUpperCase()}
+                                </Text>
+                            </View>
                         </View>
-                        <View style={[styles.avatarCircle, { backgroundColor: colors.primary, shadowColor: colors.primary }]}>
-                            <Text style={styles.avatarText}>
-                                {profile.firstName.charAt(0).toUpperCase()}
-                            </Text>
+                    </Animated.View>
+
+                    <Animated.View entering={FadeInDown.duration(500).delay(200).springify()} style={styles.shadowWrapperWrapper}>
+                        <ProfileCard profile={profile} />
+                    </Animated.View>
+
+                    <Animated.View entering={FadeInDown.duration(500).delay(300).springify()} style={styles.shadowWrapperWrapper}>
+                        <TodayClassWidget todayClassInfo={todayClassInfo} />
+                    </Animated.View>
+
+                    <Animated.View entering={FadeInDown.duration(500).delay(400).springify()} style={styles.shadowWrapperWrapper}>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Información Personal</Text>
+                        <View style={styles.infoGrid}>
+                            <InfoCard
+                                icon="person-outline"
+                                label="Nombre Completo"
+                                value={profile.fullName}
+                            />
+                            <InfoCard
+                                icon="card-outline"
+                                label="R.U.T."
+                                value={profile.rut}
+                            />
+                            <InfoCard
+                                icon="id-card-outline"
+                                label="Rol USM"
+                                value={profile.rol}
+                            />
+                            <InfoCard
+                                icon="document-text-outline"
+                                label="Plan"
+                                value={profile.plan}
+                            />
                         </View>
-                    </View>
+                    </Animated.View>
 
-                    <ProfileCard profile={profile} />
+                    <Animated.View entering={FadeInDown.duration(500).delay(500).springify()} style={styles.shadowWrapperWrapper}>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Contacto</Text>
+                        <View style={styles.infoGrid}>
+                            <InfoCard
+                                icon="mail-outline"
+                                label="Email USM"
+                                value={profile.emailUsm}
+                            />
+                            <InfoCard
+                                icon="mail-outline"
+                                label="Email Personal"
+                                value={profile.emailPersonal}
+                            />
+                        </View>
+                    </Animated.View>
 
-                    <TodayClassWidget todayClassInfo={todayClassInfo} />
-
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Información Personal</Text>
-                    <View style={styles.infoGrid}>
-                        <InfoCard
-                            icon="person-outline"
-                            label="Nombre Completo"
-                            value={profile.fullName}
-                        />
-                        <InfoCard
-                            icon="card-outline"
-                            label="R.U.T."
-                            value={profile.rut}
-                        />
-                        <InfoCard
-                            icon="id-card-outline"
-                            label="Rol USM"
-                            value={profile.rol}
-                        />
-                        <InfoCard
-                            icon="document-text-outline"
-                            label="Plan"
-                            value={profile.plan}
-                        />
-                    </View>
-
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Contacto</Text>
-                    <View style={styles.infoGrid}>
-                        <InfoCard
-                            icon="mail-outline"
-                            label="Email USM"
-                            value={profile.emailUsm}
-                        />
-                        <InfoCard
-                            icon="mail-outline"
-                            label="Email Personal"
-                            value={profile.emailPersonal}
-                        />
-                    </View>
-
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Académico</Text>
-                    <View style={styles.infoGrid}>
-                        <InfoCard
-                            icon="calendar-outline"
-                            label="Última Matrícula"
-                            value={profile.lastEnrollment}
-                        />
-                        <InfoCard
-                            icon="checkmark-circle-outline"
-                            label="Situación Académica"
-                            value={profile.situation}
-                            valueColor={profile.situation.toLowerCase().includes('regular') ? '#00C853' : profile.situation.toLowerCase().includes('condicional') ? '#FF9100' : '#F44336'}
-                        />
-                    </View>
+                    <Animated.View entering={FadeInDown.duration(500).delay(600).springify()} style={styles.shadowWrapperWrapper}>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Académico</Text>
+                        <View style={styles.infoGrid}>
+                            <InfoCard
+                                icon="calendar-outline"
+                                label="Última Matrícula"
+                                value={profile.lastEnrollment}
+                            />
+                            <InfoCard
+                                icon="checkmark-circle-outline"
+                                label="Situación Académica"
+                                value={profile.situation}
+                                valueColor={profile.situation.toLowerCase().includes('regular') ? '#00C853' : profile.situation.toLowerCase().includes('condicional') ? '#FF9100' : '#F44336'}
+                            />
+                        </View>
+                    </Animated.View>
 
                     <View style={{ height: 40 }} />
                 </ScrollView>
@@ -307,5 +320,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingVertical: 4,
         marginBottom: 8,
+    },
+    shadowWrapperWrapper: {
+        backgroundColor: 'transparent',
     },
 });

@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FULL_DAYS, SelectedBlock, TIME_BLOCKS } from '../../utils/scheduleConstants';
 import { useTheme } from '../../utils/ThemeContext';
 import { DetailRow } from './DetailRow';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface ScheduleModalProps {
     selectedBlock: SelectedBlock | null;
@@ -13,34 +16,87 @@ interface ScheduleModalProps {
 export function ScheduleModal({ selectedBlock, onClose }: ScheduleModalProps) {
     const { colors, theme } = useTheme();
 
+    const [modalVisible, setModalVisible] = useState(false);
+    const [renderBlock, setRenderBlock] = useState<SelectedBlock | null>(null);
+    const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+    const opacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (selectedBlock) {
+            setRenderBlock(selectedBlock);
+            setModalVisible(true);
+            Animated.parallel([
+                Animated.spring(translateY, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                    speed: 12,
+                    bounciness: 0,
+                }),
+                Animated.timing(opacity, {
+                    toValue: 1,
+                    duration: 250,
+                    useNativeDriver: true,
+                })
+            ]).start();
+        } else {
+            Animated.parallel([
+                Animated.spring(translateY, {
+                    toValue: SCREEN_HEIGHT,
+                    useNativeDriver: true,
+                    speed: 12,
+                    bounciness: 0,
+                }),
+                Animated.timing(opacity, {
+                    toValue: 0,
+                    duration: 150,
+                    useNativeDriver: true,
+                })
+            ]).start((result) => {
+                // Solo limpiamos el estado si la animación terminó por completo
+                // Si fue interrumpida (result.finished === false), significa que otro bloque se abrió
+                if (result.finished) {
+                    setModalVisible(false);
+                    setRenderBlock(null);
+                }
+            });
+        }
+    }, [selectedBlock, translateY, opacity]);
+
+    if (!modalVisible && !selectedBlock) return null;
+
     return (
-        <Modal
-            visible={!!selectedBlock}
-            transparent
-            animationType="slide"
-            onRequestClose={onClose}
+        <View
+            style={[StyleSheet.absoluteFill, { zIndex: 999 }]}
+            pointerEvents={selectedBlock ? 'auto' : 'none'}
         >
-            <Pressable
-                style={styles.modalOverlay}
-                onPress={onClose}
-            >
-                <Pressable
-                    style={[styles.modalSheet, { backgroundColor: colors.surface }]}
+            <View style={styles.modalOverlay}>
+                <AnimatedPressable
+                    style={[
+                        StyleSheet.absoluteFill,
+                        { backgroundColor: 'rgba(0,0,0,0.4)', opacity }
+                    ]}
+                    onPress={onClose}
+                />
+                <AnimatedPressable
+                    style={[
+                        styles.modalSheet,
+                        { backgroundColor: colors.surface, transform: [{ translateY }] }
+                    ]}
                     onPress={(e) => e.stopPropagation()}
                 >
-                    {selectedBlock && (
+                    {renderBlock && (
                         <>
                             <View style={styles.modalHandle} />
 
-                            <View style={[styles.modalHeader, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : selectedBlock.color.bg }]}>
-                                <View style={[styles.modalAccent, { backgroundColor: selectedBlock.color.border }]} />
+                            <View style={[styles.modalHeader, { backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : renderBlock.color.bg }]}>
+                                <View style={[styles.modalAccent, { backgroundColor: renderBlock.color.border }]} />
                                 <View style={styles.modalHeaderContent}>
-                                    <Text style={[styles.modalSubjectCode, { color: theme === 'dark' ? colors.text : selectedBlock.color.text }]}>
+                                    <Text style={[styles.modalSubjectCode, { color: theme === 'dark' ? colors.text : renderBlock.color.text }]}>
                                         {(() => {
-                                            if (selectedBlock.cell.type === 'Tope') {
+                                            if (renderBlock.cell.type === 'Tope') {
                                                 return 'TOPE DE HORARIO';
                                             }
-                                            const t = selectedBlock.cell.title || '';
+                                            const t = renderBlock.cell.title || '';
                                             const parts = t.split(' - ');
                                             if (parts.length >= 2) {
                                                 return parts.slice(1).join(' - ').replace(/\s*\(.*\)\s*$/, '').toUpperCase();
@@ -50,10 +106,10 @@ export function ScheduleModal({ selectedBlock, onClose }: ScheduleModalProps) {
                                     </Text>
                                     <Text style={[styles.modalSubjectTitle, { color: colors.textSecondary }]}>
                                         {(() => {
-                                            if (selectedBlock.cell.type === 'Tope' && selectedBlock.cell.topeSubjects) {
-                                                return `Colisión: ${selectedBlock.cell.topeSubjects.join(' / ')}`;
+                                            if (renderBlock.cell.type === 'Tope' && renderBlock.cell.topeSubjects) {
+                                                return `Colisión: ${renderBlock.cell.topeSubjects.join(' / ')}`;
                                             }
-                                            const t = selectedBlock.cell.title || '';
+                                            const t = renderBlock.cell.title || '';
                                             const parts = t.split(' - ');
                                             if (parts.length >= 2) {
                                                 const code = parts[0].trim();
@@ -76,42 +132,42 @@ export function ScheduleModal({ selectedBlock, onClose }: ScheduleModalProps) {
                                 <DetailRow
                                     icon="calendar-outline"
                                     label="Día"
-                                    value={FULL_DAYS[selectedBlock.colIndex] || '—'}
+                                    value={FULL_DAYS[renderBlock.colIndex] || '—'}
                                 />
                                 <DetailRow
                                     icon="time-outline"
                                     label="Bloque"
-                                    value={`${TIME_BLOCKS[selectedBlock.rowIndex]?.label} (${TIME_BLOCKS[selectedBlock.rowIndex]?.start} - ${TIME_BLOCKS[selectedBlock.rowIndex]?.end})`}
+                                    value={`${TIME_BLOCKS[renderBlock.rowIndex]?.label} (${TIME_BLOCKS[renderBlock.rowIndex]?.start} - ${TIME_BLOCKS[renderBlock.rowIndex]?.end})`}
                                 />
-                                {selectedBlock.cell.type !== 'Tope' && (
+                                {renderBlock.cell.type !== 'Tope' && (
                                     <DetailRow
                                         icon="location-outline"
                                         label="Sala"
-                                        value={selectedBlock.cell.room || 'Sin asignar'}
+                                        value={renderBlock.cell.room || 'Sin asignar'}
                                     />
                                 )}
-                                {selectedBlock.cell.type !== 'Tope' && (
+                                {renderBlock.cell.type !== 'Tope' && (
                                     <DetailRow
                                         icon="person-outline"
                                         label="Profesor"
-                                        value={selectedBlock.cell.professor || 'Sin asignar'}
+                                        value={renderBlock.cell.professor || 'Sin asignar'}
                                     />
                                 )}
                                 <DetailRow
                                     icon="book-outline"
                                     label="Tipo"
-                                    value={selectedBlock.cell.type || '—'}
+                                    value={renderBlock.cell.type || '—'}
                                 />
-                                {selectedBlock.cell.type === 'Tope' && (
+                                {renderBlock.cell.type === 'Tope' && (
                                     <View style={[styles.topeWarning, { backgroundColor: theme === 'dark' ? 'rgba(244, 67, 54, 0.15)' : '#FFEBEE' }]}>
                                         <Ionicons name="warning" size={18} color="#F44336" />
                                         <View style={{ flex: 1, marginLeft: 10 }}>
                                             <Text style={[styles.topeWarningText, { color: theme === 'dark' ? '#FF8A80' : '#B71C1C' }]}>
                                                 Este bloque tiene un tope de horario
                                             </Text>
-                                            {selectedBlock.cell.topeSubjects && (
+                                            {renderBlock.cell.topeSubjects && (
                                                 <Text style={[styles.topeWarningText, { fontWeight: '400', marginTop: 4, color: theme === 'dark' ? '#FF8A80' : '#B71C1C' }]}>
-                                                    Asignaturas: {selectedBlock.cell.topeSubjects.join(', ')}
+                                                    Asignaturas: {renderBlock.cell.topeSubjects.join(', ')}
                                                 </Text>
                                             )}
                                         </View>
@@ -120,16 +176,15 @@ export function ScheduleModal({ selectedBlock, onClose }: ScheduleModalProps) {
                             </ScrollView>
                         </>
                     )}
-                </Pressable>
-            </Pressable>
-        </Modal>
+                </AnimatedPressable>
+            </View>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.4)',
         justifyContent: 'flex-end',
     },
     modalSheet: {

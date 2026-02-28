@@ -11,6 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { clearCredentials, clearProfile, clearSchedule } from '../../utils/storage';
 import { useTheme } from '../../utils/ThemeContext';
@@ -42,9 +43,9 @@ export default function SettingsScreen() {
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={[styles.title, { color: colors.text }]}>Ajustes</Text>
+                <Animated.Text entering={FadeInDown.duration(400).delay(100).springify()} style={[styles.title, { color: colors.text }]}>Ajustes</Animated.Text>
 
-                <View style={styles.section}>
+                <Animated.View entering={FadeInDown.duration(400).delay(200).springify()} style={styles.section}>
                     <Text style={styles.sectionTitle}>Apariencia</Text>
                     <View style={[styles.settingsItem, { backgroundColor: colors.surface, shadowColor: colors.cardShadow, borderColor: colors.border, borderWidth: theme === 'dark' ? 1 : 0 }]}>
                         <Ionicons name={theme === 'dark' ? "moon" : "sunny"} size={22} color={colors.primary} style={{ marginRight: 12 }} />
@@ -56,9 +57,9 @@ export default function SettingsScreen() {
                             thumbColor={Platform.OS === 'ios' ? undefined : '#fff'}
                         />
                     </View>
-                </View>
+                </Animated.View>
 
-                <View style={styles.section}>
+                <Animated.View entering={FadeInDown.duration(400).delay(300).springify()} style={styles.section}>
                     <Text style={styles.sectionTitle}>Aplicación</Text>
                     <SettingsItem
                         icon="information-circle-outline"
@@ -70,17 +71,17 @@ export default function SettingsScreen() {
                         label="Universidad"
                         value="USM"
                     />
-                </View>
+                </Animated.View>
 
-                <View style={styles.section}>
+                <Animated.View entering={FadeInDown.duration(400).delay(400).springify()} style={styles.section}>
                     <Text style={styles.sectionTitle}>Cuenta</Text>
                     <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                         <Ionicons name="log-out-outline" size={22} color="#F44336" />
                         <Text style={styles.logoutText}>Cerrar Sesión</Text>
                     </TouchableOpacity>
-                </View>
+                </Animated.View>
 
-                <Text style={styles.footer}>SIGApp · Hecho con ❤️ para la USM</Text>
+                <Animated.Text entering={FadeInDown.duration(400).delay(500).springify()} style={styles.footer}>SIGApp · Hecho con ❤️ para la USM</Animated.Text>
             </ScrollView>
         </SafeAreaView>
     );
@@ -93,7 +94,7 @@ function SettingsItem({ icon, label, value }: {
 }) {
     const { colors, theme } = useTheme();
     return (
-        <View style={[styles.settingsItem, { backgroundColor: colors.surface, shadowColor: colors.cardShadow, borderColor: colors.border, borderWidth: theme === 'dark' ? 1 : 0 }]}>
+        <View style={[styles.settingsItem, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: theme === 'dark' ? 1 : 0 }]}>
             <Ionicons name={icon} size={22} color={colors.primary} style={{ marginRight: 12 }} />
             <Text style={[styles.settingsLabel, { color: colors.text }]}>{label}</Text>
             <Text style={[styles.settingsValue, { color: colors.textSecondary }]}>{value}</Text>
@@ -134,11 +135,6 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 14,
         marginBottom: 8,
-        shadowColor: '#000',
-        shadowOpacity: 0.04,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
     },
     settingsLabel: {
         flex: 1,
@@ -156,11 +152,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFEBEE',
         borderRadius: 12,
         padding: 14,
-        shadowColor: '#000',
-        shadowOpacity: 0.04,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
     },
     logoutText: {
         fontSize: 15,

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
@@ -12,8 +12,19 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
+import Animated, {
+    FadeIn,
+    FadeInDown,
+    FadeOut,
+    LinearTransition,
+    SlideInLeft,
+    SlideInRight,
+    SlideOutLeft,
+    SlideOutRight,
+    ZoomIn
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SigaWebView from '../components/SigaWebView';
 import { parseHtmlSchedule } from '../utils/sigaApi';
@@ -25,8 +36,6 @@ export default function LoginScreen() {
 
     const [rut, setRut] = useState('');
     const [password, setPassword] = useState('');
-    const [maskedPassword, setMaskedPassword] = useState('');
-    const realPasswordRef = useRef('');
     const [server, setServer] = useState('usm.cl');
     const [rememberMe, setRememberMe] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
@@ -103,27 +112,37 @@ export default function LoginScreen() {
                     style={styles.container}
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 >
-                    <View style={styles.logoContainer}>
+                    <Animated.View
+                        style={styles.logoContainer}
+                        entering={ZoomIn.duration(800).delay(200).springify()}
+                    >
                         <ExpoImage
                             source={require('../assets/images/usm/logo-usm.svg')}
                             style={styles.logo}
                             contentFit="contain"
                         />
-                    </View>
+                    </Animated.View>
 
-                    <View style={styles.card}>
+                    <Animated.View
+                        style={styles.card}
+                        entering={FadeInDown.duration(600).springify()}
+                    >
                         <Text style={styles.title}>SIGApp</Text>
                         <Text style={styles.subtitle}>Inicia sesión para ver tu horario y mas</Text>
 
                         {step === 1 ? (
-                            <View>
+                            <Animated.View
+                                entering={SlideInLeft.duration(300)}
+                                exiting={SlideOutLeft.duration(300)}
+                                layout={LinearTransition}
+                            >
                                 <View style={styles.inputGroup}>
                                     <Text style={styles.label}>Usuario</Text>
                                     <View style={styles.row}>
                                         <TextInput
                                             style={[styles.input, styles.rutInput]}
                                             value={rut}
-                                            onChangeText={setRut}
+                                            onChangeText={(t) => setRut(t.replace(/\s/g, ''))}
                                             placeholder="correo institucional"
                                             autoCapitalize="none"
                                             autoCorrect={false}
@@ -154,9 +173,13 @@ export default function LoginScreen() {
                                 >
                                     <Text style={styles.primaryButtonText}>Siguiente</Text>
                                 </TouchableOpacity>
-                            </View>
+                            </Animated.View>
                         ) : (
-                            <View>
+                            <Animated.View
+                                entering={SlideInRight.duration(300)}
+                                exiting={SlideOutRight.duration(300)}
+                                layout={LinearTransition}
+                            >
                                 <TouchableOpacity
                                     style={styles.userBadge}
                                     onPress={() => {
@@ -175,32 +198,14 @@ export default function LoginScreen() {
                                     <View style={styles.passwordContainer}>
                                         <TextInput
                                             style={styles.passwordInput}
-                                            value={showPassword ? password : maskedPassword}
-                                            onChangeText={(text) => {
-                                                if (showPassword) {
-                                                    setPassword(text);
-                                                    realPasswordRef.current = text;
-                                                    setMaskedPassword('•'.repeat(text.length));
-                                                } else {
-                                                    const prev = realPasswordRef.current;
-                                                    const newLen = text.length;
-                                                    const prevLen = prev.length;
-
-                                                    if (newLen > prevLen) {
-                                                        const added = text.replace(/•/g, '');
-                                                        const real = prev + added;
-                                                        realPasswordRef.current = real;
-                                                        setPassword(real);
-                                                        setMaskedPassword('•'.repeat(real.length));
-                                                    } else {
-                                                        const real = prev.substring(0, newLen);
-                                                        realPasswordRef.current = real;
-                                                        setPassword(real);
-                                                        setMaskedPassword('•'.repeat(real.length));
-                                                    }
-                                                }
+                                            textContentType="password"
+                                            value={password}
+                                            secureTextEntry={!showPassword}
+                                            onChangeText={(t) => {
+                                                const text = t.replace(/\s/g, '');
+                                                setPassword(text);
                                             }}
-                                            placeholder="••••••••"
+                                            placeholder="Contraseña"
                                             autoCapitalize="none"
                                             autoCorrect={false}
                                             autoComplete="off"
@@ -245,19 +250,21 @@ export default function LoginScreen() {
                                         <Text style={styles.primaryButtonText}>Iniciar Sesión</Text>
                                     )}
                                 </TouchableOpacity>
-                            </View>
+                            </Animated.View>
                         )}
 
                         {isWebViewActive && (
-                            <SigaWebView
-                                rut={rut}
-                                pass={password}
-                                server={server}
-                                onCompleted={handleWebViewSuccess}
-                                onError={handleWebViewError}
-                            />
+                            <Animated.View entering={FadeIn.duration(400)} exiting={FadeOut.duration(300)}>
+                                <SigaWebView
+                                    rut={rut}
+                                    pass={password}
+                                    server={server}
+                                    onCompleted={handleWebViewSuccess}
+                                    onError={handleWebViewError}
+                                />
+                            </Animated.View>
                         )}
-                    </View>
+                    </Animated.View>
                 </KeyboardAvoidingView>
             </ImageBackground>
         </SafeAreaView>
@@ -440,4 +447,28 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontWeight: '500',
     },
+    loadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+    },
+    loadingBox: {
+        backgroundColor: '#fff',
+        padding: 24,
+        borderRadius: 16,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    loadingTextOverlay: {
+        marginTop: 16,
+        fontSize: 16,
+        color: '#333',
+        fontWeight: '600',
+    }
 });
