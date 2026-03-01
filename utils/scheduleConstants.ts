@@ -61,13 +61,16 @@ export const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 export const FULL_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 export const TIME_BLOCKS = [
-    { label: '1-2', start: '08:15', end: '09:45' },
-    { label: '3-4', start: '10:00', end: '11:30' },
-    { label: '5-6', start: '11:45', end: '13:15' },
-    { label: '7-8', start: '14:15', end: '15:45' },
-    { label: '9-10', start: '16:00', end: '17:30' },
-    { label: '11-12', start: '17:45', end: '19:15' },
-    { label: '13-14', start: '19:30', end: '21:00' },
+    { label: '1-2', start: '08:15', end: '09:25' },
+    { label: '3-4', start: '09:40', end: '10:50' },
+    { label: '5-6', start: '11:05', end: '12:15' },
+    { label: '7-8', start: '12:30', end: '13:40' },
+    { label: '9-10', start: '14:40', end: '15:50' },
+    { label: '11-12', start: '16:05', end: '17:15' },
+    { label: '13-14', start: '17:30', end: '18:40' },
+    { label: '15-16', start: '18:55', end: '20:05' },
+    { label: '17-18', start: '20:20', end: '21:30' },
+    { label: '19-20', start: '21:45', end: '22:55' },
 ];
 
 export const SUBJECT_COLORS = [
@@ -90,4 +93,5 @@ export interface SelectedBlock {
     rowIndex: number;
     colIndex: number;
     color: { bg: string; border: string; text: string };
+    span?: number;
 }

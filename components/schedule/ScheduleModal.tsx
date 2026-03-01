@@ -137,7 +137,15 @@ export function ScheduleModal({ selectedBlock, onClose }: ScheduleModalProps) {
                                 <DetailRow
                                     icon="time-outline"
                                     label="Bloque"
-                                    value={`${TIME_BLOCKS[renderBlock.rowIndex]?.label} (${TIME_BLOCKS[renderBlock.rowIndex]?.start} - ${TIME_BLOCKS[renderBlock.rowIndex]?.end})`}
+                                    value={(() => {
+                                        const startBlock = TIME_BLOCKS[renderBlock.rowIndex];
+                                        if (!startBlock) return '—';
+                                        if (renderBlock.span && renderBlock.span > 1) {
+                                            const blocks = TIME_BLOCKS.slice(renderBlock.rowIndex, renderBlock.rowIndex + renderBlock.span);
+                                            return blocks.map(b => `${b.label} (${b.start}-${b.end})`).join('\n');
+                                        }
+                                        return `${startBlock.label} (${startBlock.start}-${startBlock.end})`;
+                                    })()}
                                 />
                                 {renderBlock.cell.type !== 'Tope' && (
                                     <DetailRow

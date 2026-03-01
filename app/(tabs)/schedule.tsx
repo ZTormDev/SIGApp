@@ -177,11 +177,11 @@ export default function ScheduleScreen() {
 
     const todayClassInfo = getTodayClass();
 
-    const handleCellPress = (cell: any, rowIndex: number, colIndex: number) => {
+    const handleCellPress = (cell: any, rowIndex: number, colIndex: number, span: number = 1) => {
         if (!cell || !cell.isFilled) return;
         const color = getColorForCell(cell);
         if (!color) return;
-        setSelectedBlock({ cell, rowIndex, colIndex, color });
+        setSelectedBlock({ cell, rowIndex, colIndex, color, span });
     };
 
     if (isLoading) {
@@ -271,7 +271,7 @@ export default function ScheduleScreen() {
                                     <View key={colIndex} style={{ width: dayColumnWidth, minHeight: 56, margin: 2, overflow: 'visible' }}>
                                         <TouchableOpacity
                                             activeOpacity={0.6}
-                                            onPress={() => handleCellPress(cell, rowIndex, colIndex)}
+                                            onPress={() => handleCellPress(cell, rowIndex, colIndex, span)}
                                             style={[
                                                 styles.gridCell,
                                                 {
@@ -326,7 +326,7 @@ export default function ScheduleScreen() {
                                 <TouchableOpacity
                                     key={colIndex}
                                     activeOpacity={isFilled ? 0.6 : 1}
-                                    onPress={() => handleCellPress(cell, rowIndex, colIndex)}
+                                    onPress={() => handleCellPress(cell, rowIndex, colIndex, 1)}
                                     style={[
                                         styles.gridCell,
                                         { width: dayColumnWidth, backgroundColor: colors.surface },
