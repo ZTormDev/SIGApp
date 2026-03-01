@@ -8,6 +8,7 @@ import {
     Platform,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TextInput,
     TouchableOpacity,
@@ -16,11 +17,13 @@ import {
 import Animated, {
     Extrapolate,
     interpolate,
+    SharedValue,
     useAnimatedScrollHandler,
     useAnimatedStyle,
     useSharedValue
 } from 'react-native-reanimated';
 import { useTheme } from '../../utils/ThemeContext';
+import { requestNotificationPermissions } from '../../utils/notifications';
 import { Exam } from '../../utils/storage';
 
 interface ExamModalProps {
@@ -47,15 +50,15 @@ const PADDED_MINUTES = ["", "", ...MINUTES, "", ""];
 interface WheelItemProps {
     item: string;
     index: number;
-    scrollY: Animated.SharedValue<number>;
+    scrollY: SharedValue<number>;
     colors: any;
 }
 
 const WheelItem = ({ item, index, scrollY, colors }: WheelItemProps) => {
     const animatedStyle = useAnimatedStyle(() => {
-        const itemPosition = index * ITEM_HEIGHT;
-        const middle = scrollY.value; // scrollY is already shifted by 2 * ITEM_HEIGHT if we scroll correctly
-        const distance = Math.abs((itemPosition - ITEM_HEIGHT * 2) - middle);
+        const itemPosition = (index - 0) * ITEM_HEIGHT;
+        const middle = scrollY.value;
+        const distance = Math.abs(itemPosition - middle);
 
         const scale = interpolate(
             distance,
@@ -92,6 +95,7 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
     const [room, setRoom] = useState('');
     const [type, setType] = useState<Exam['type']>('Certamen');
     const [notes, setNotes] = useState('');
+    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
     // Modern Time Picker States
     const [showTimePicker, setShowTimePicker] = useState(false);
@@ -111,13 +115,16 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
             setRoom(existingExam.room);
             setType(existingExam.type);
             setNotes(existingExam.notes || '');
+            setNotificationsEnabled(existingExam.notificationsEnabled ?? true);
 
             const [h, m] = existingExam.time.split(':');
             setSelectedHour(h || '08');
             setSelectedMinute(m || '30');
 
-            hourScrollY.value = HOURS.indexOf(h || '08') * ITEM_HEIGHT;
-            minuteScrollY.value = MINUTES.indexOf(m || '30') * ITEM_HEIGHT;
+            const hIndex = HOURS.indexOf(h || '08');
+            const mIndex = MINUTES.indexOf(m || '30');
+            hourScrollY.value = hIndex * ITEM_HEIGHT;
+            minuteScrollY.value = mIndex * ITEM_HEIGHT;
         } else {
             setSubject(subjects[0] || '');
             setSelectedHour('08');
@@ -125,19 +132,22 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
             setRoom('');
             setType('Certamen');
             setNotes('');
+            setNotificationsEnabled(true);
 
             hourScrollY.value = HOURS.indexOf('08') * ITEM_HEIGHT;
             minuteScrollY.value = MINUTES.indexOf('30') * ITEM_HEIGHT;
         }
     }, [existingExam, visible, subjects]);
 
+    useEffect(() => {
+        if (visible) {
+            requestNotificationPermissions();
+        }
+    }, [visible]);
+
     const handleSave = () => {
         if (!subject) {
             Alert.alert("Faltan datos", "Por favor selecciona una asignatura.");
-            return;
-        }
-        if (!room.trim()) {
-            Alert.alert("Faltan datos", "La sala es obligatoria.");
             return;
         }
 
@@ -148,7 +158,8 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
             time: `${selectedHour}:${selectedMinute}`,
             room: room.trim(),
             type,
-            notes: notes.trim()
+            notes: notes.trim(),
+            notificationsEnabled: notificationsEnabled
         };
         onSave(exam);
     };
@@ -156,11 +167,6 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
     const onHourScroll = useAnimatedScrollHandler({
         onScroll: (event) => {
             hourScrollY.value = event.contentOffset.y;
-        },
-        onMomentumScrollEnd: (event) => {
-            const index = Math.round(event.contentOffset.y / ITEM_HEIGHT);
-            // We can't update state directly here in a clean way from UI thread to JS thread without worklets,
-            // but for now, we'll use a simpler callback outside or stick to the state update
         }
     });
 
@@ -230,6 +236,20 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
                                     onChangeText={setRoom}
                                 />
                             </View>
+                        </View>
+
+                        <View style={[styles.inputGroup, styles.notificationRow]}>
+                            <View>
+                                <Text style={[styles.label, { color: colors.textSecondary, marginBottom: 0 }]}>Notificaciones</Text>
+                                <Text style={{ color: colors.textSecondary, fontSize: 12, opacity: 0.7 }}>Recordatorios 7d, 3d, 1d, 1h y al momento</Text>
+                            </View>
+                            <Switch
+                                value={notificationsEnabled}
+                                onValueChange={setNotificationsEnabled}
+                                trackColor={{ false: colors.border, true: colors.primary + '80' }}
+                                thumbColor={notificationsEnabled ? colors.primary : colors.textSecondary}
+                                ios_backgroundColor={colors.border}
+                            />
                         </View>
 
                         <View style={styles.inputGroup}>
@@ -466,6 +486,15 @@ const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
     },
+    notificationRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.02)',
+        padding: 16,
+        borderRadius: 16,
+        marginTop: 4,
+    },
     label: {
         fontSize: 13,
         fontWeight: '700',
@@ -511,7 +540,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 8,
-        elevation: 5,
     },
     saveBtnText: {
         color: '#fff',

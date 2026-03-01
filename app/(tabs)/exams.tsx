@@ -13,6 +13,7 @@ import Animated, { FadeInDown, FadeInUp, Layout } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from '../../components/exams/Calendar';
 import { ExamModal } from '../../components/exams/ExamModal';
+import { cancelExamNotifications, scheduleExamNotifications } from '../../utils/notifications';
 import { Exam, getExams, getSchedule, saveExams } from '../../utils/storage';
 import { useTheme } from '../../utils/ThemeContext';
 
@@ -77,6 +78,10 @@ export default function ExamsScreen() {
 
         setExams(newExams);
         await saveExams(newExams);
+
+        // Schedule notifications for the new/updated exam
+        await scheduleExamNotifications(exam);
+
         setModalVisible(false);
         setEditingExam(null);
     };
@@ -94,6 +99,9 @@ export default function ExamsScreen() {
                         const newExams = exams.filter(e => e.id !== id);
                         setExams(newExams);
                         await saveExams(newExams);
+
+                        // Cancel any pending notifications for this exam
+                        await cancelExamNotifications(id);
                     }
                 }
             ]

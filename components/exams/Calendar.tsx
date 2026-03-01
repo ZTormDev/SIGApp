@@ -160,6 +160,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 10,
         borderWidth: 1,
+        height: 'auto',
     },
     header: {
         flexDirection: 'row',
@@ -200,6 +201,7 @@ const styles = StyleSheet.create({
     daysGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
+        height: 'auto',
     },
     dayCell: {
         width: `${100 / 7}%`,

@@ -61,6 +61,7 @@ export interface Exam {
     room: string;
     type: 'Certamen' | 'Control' | 'Tarea' | 'Otro';
     notes?: string;
+    notificationsEnabled: boolean;
 }
 
 export async function saveCredentials(rut: string, pass: string, server: string = 'usm.cl') {
