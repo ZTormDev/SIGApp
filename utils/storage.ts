@@ -11,6 +11,7 @@ const PWD_KEY = 'PWD_CREDENTIAL';
 const SERVER_KEY = 'SERVER_CREDENTIAL';
 const SCHEDULE_KEY = 'USER_SCHEDULE';
 const PROFILE_KEY = 'USER_PROFILE';
+const EXAMS_KEY = 'USER_EXAMS';
 const DISCLAIMER_KEY = 'HAS_ACCEPTED_DISCLAIMER';
 
 const secureSetItem = async (key: string, value: string) => {
@@ -50,6 +51,16 @@ export interface UserProfile {
     situation: string;
     lastEnrollment: string;
     plan: string;
+}
+
+export interface Exam {
+    id: string;
+    subject: string;
+    date: string; // ISO string YYYY-MM-DD
+    time: string; // HH:mm
+    room: string;
+    type: 'Certamen' | 'Control' | 'Tarea' | 'Otro';
+    notes?: string;
 }
 
 export async function saveCredentials(rut: string, pass: string, server: string = 'usm.cl') {
@@ -133,6 +144,29 @@ export async function hasAcceptedDisclaimer() {
     } catch {
         return false;
     }
+}
+
+export async function getExams(): Promise<Exam[]> {
+    try {
+        const jsonValue = await AsyncStorage.getItem(EXAMS_KEY);
+        return jsonValue != null ? JSON.parse(jsonValue) : [];
+    } catch (error) {
+        console.error('Error reading exams:', error);
+        return [];
+    }
+}
+
+export async function saveExams(exams: Exam[]) {
+    try {
+        const jsonValue = JSON.stringify(exams);
+        await AsyncStorage.setItem(EXAMS_KEY, jsonValue);
+    } catch (error) {
+        console.error('Error saving exams:', error);
+    }
+}
+
+export async function clearExams() {
+    await AsyncStorage.removeItem(EXAMS_KEY);
 }
 
 export async function setAcceptedDisclaimer() {

@@ -204,7 +204,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: -4 },
-        elevation: 24,
     },
     modalHandle: {
         width: 40,

@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { InfoCard } from '../../components/home/InfoCard';
 import { ProfileCard } from '../../components/home/ProfileCard';
 import { TodayClassWidget } from '../../components/home/TodayClassWidget';
-import { DEMO_DATA, TIME_BLOCKS } from '../../utils/scheduleConstants';
+import { DEMO_DATA, FULL_DAYS, TIME_BLOCKS } from '../../utils/scheduleConstants';
 import { getProfile, getSchedule, UserProfile } from '../../utils/storage';
 import { useTheme } from '../../utils/ThemeContext';
 
@@ -88,12 +88,24 @@ export default function HomeScreen() {
         if (!schedule) return null;
 
         const now = new Date();
-        const dayIndex = now.getDay() - 1;
-        if (dayIndex < 0 || dayIndex > 5) return { type: 'no-classes', message: '¡Hoy es domingo! Disfruta tu descanso.' };
+        let dayIndex = now.getDay() - 1; // 0 = Monday, ..., 5 = Saturday, -1 = Sunday
+
+        if (dayIndex === -1) {
+            return { type: 'no-classes', message: '¡Hoy es domingo! Disfruta tu descanso.' };
+        }
 
         const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
         const todaySchedule = schedule.map(row => row[dayIndex]);
+
+        // Check if today has ANY classes
+        const hasClassesToday = todaySchedule.some(cell => cell && cell.isFilled && cell.title !== '' && cell.type !== 'Tope');
+
+        if (!hasClassesToday) {
+            const dayName = FULL_DAYS[dayIndex] || 'hoy';
+            const message = dayIndex === 5 ? '¡No tienes clases los sábados! 🎉' : `¡No tienes clases los ${dayName.toLowerCase()}s! 🎉`;
+            return { type: 'no-classes', message };
+        }
+
         let currentClass = null;
         let nextClass = null;
 

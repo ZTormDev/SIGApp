@@ -13,7 +13,7 @@ import {
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScheduleModal } from '../../components/schedule/ScheduleModal';
-import { DAYS, DEMO_DATA, SelectedBlock, SUBJECT_COLORS, TIME_BLOCKS, TOPE_COLOR } from '../../utils/scheduleConstants';
+import { DAYS, DEMO_DATA, FULL_DAYS, SelectedBlock, SUBJECT_COLORS, TIME_BLOCKS, TOPE_COLOR } from '../../utils/scheduleConstants';
 import { getSchedule } from '../../utils/storage';
 import { useTheme } from '../../utils/ThemeContext';
 
@@ -146,12 +146,24 @@ export default function ScheduleScreen() {
         if (!scheduleData) return null;
 
         const now = new Date();
-        const dayIndex = now.getDay() - 1;
-        if (dayIndex < 0 || dayIndex > 5) return { type: 'no-classes', message: '¡Hoy es domingo! Disfruta tu descanso.' };
+        let dayIndex = now.getDay() - 1; // 0 = Monday, ..., 5 = Saturday, -1 = Sunday
+
+        if (dayIndex === -1) {
+            return { type: 'no-classes', message: '¡Hoy es domingo! Disfruta tu descanso.' };
+        }
 
         const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
         const todaySchedule = scheduleData.map(row => row[dayIndex]);
+
+        // Check if today has ANY classes
+        const hasClassesToday = todaySchedule.some(cell => cell && cell.isFilled && cell.title !== '' && cell.type !== 'Tope');
+
+        if (!hasClassesToday) {
+            const dayName = FULL_DAYS[dayIndex] || 'hoy';
+            const message = dayIndex === 5 ? '¡No tienes clases los sábados! 🎉' : `¡No tienes clases los ${dayName.toLowerCase()}s! 🎉`;
+            return { type: 'no-classes', message };
+        }
+
         let currentClass = null;
         let nextClass = null;
 
@@ -202,7 +214,17 @@ export default function ScheduleScreen() {
         );
     }
 
-    const dayColumnWidth = (screenWidth - 16 - 44 - 24) / DAYS.length;
+    const hasSaturdayClasses = useMemo(() => {
+        if (!scheduleData) return false;
+        // Index 5 is Saturday
+        return scheduleData.some(row => row[5] && row[5].isFilled);
+    }, [scheduleData]);
+
+    const displayedDays = useMemo(() => {
+        return hasSaturdayClasses ? DAYS : DAYS.slice(0, 5);
+    }, [hasSaturdayClasses]);
+
+    const dayColumnWidth = (screenWidth - 16 - 44 - 24) / displayedDays.length;
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
@@ -215,7 +237,7 @@ export default function ScheduleScreen() {
 
             <View style={styles.dayHeaderRow}>
                 <View style={styles.timeHeaderCell} />
-                {DAYS.map((day, i) => {
+                {displayedDays.map((day, i) => {
                     const today = new Date().getDay();
                     const isToday = today === i + 1;
                     return (
@@ -253,7 +275,7 @@ export default function ScheduleScreen() {
                             </Text>
                         </View>
 
-                        {row.map((cell: any, colIndex: number) => {
+                        {row.slice(0, displayedDays.length).map((cell: any, colIndex: number) => {
                             const mergeKey = `${rowIndex}-${colIndex}`;
                             const merge = mergeMap[mergeKey] || { span: 1, hidden: false };
 
