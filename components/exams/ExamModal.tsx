@@ -1,12 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
-    FlatList,
     KeyboardAvoidingView,
     Modal,
-    NativeScrollEvent,
-    NativeSyntheticEvent,
     Platform,
     ScrollView,
     StyleSheet,
@@ -15,6 +13,13 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import Animated, {
+    Extrapolate,
+    interpolate,
+    useAnimatedScrollHandler,
+    useAnimatedStyle,
+    useSharedValue
+} from 'react-native-reanimated';
 import { useTheme } from '../../utils/ThemeContext';
 import { Exam } from '../../utils/storage';
 
@@ -28,13 +33,58 @@ interface ExamModalProps {
 }
 
 const EXAM_TYPES = ['Certamen', 'Control', 'Tarea', 'Otro'];
-const ITEM_HEIGHT = 50; // A bit taller for better feel
+const ITEM_HEIGHT = 50;
+const VISIBLE_ITEMS = 5;
+const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
 
-// Data with padding for the wheel effect
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
+// Padding with empty items for the wheel centering
 const PADDED_HOURS = ["", "", ...HOURS, "", ""];
 const PADDED_MINUTES = ["", "", ...MINUTES, "", ""];
+
+interface WheelItemProps {
+    item: string;
+    index: number;
+    scrollY: Animated.SharedValue<number>;
+    colors: any;
+}
+
+const WheelItem = ({ item, index, scrollY, colors }: WheelItemProps) => {
+    const animatedStyle = useAnimatedStyle(() => {
+        const itemPosition = index * ITEM_HEIGHT;
+        const middle = scrollY.value; // scrollY is already shifted by 2 * ITEM_HEIGHT if we scroll correctly
+        const distance = Math.abs((itemPosition - ITEM_HEIGHT * 2) - middle);
+
+        const scale = interpolate(
+            distance,
+            [0, ITEM_HEIGHT, ITEM_HEIGHT * 2],
+            [1.4, 0.9, 0.7],
+            Extrapolate.CLAMP
+        );
+
+        const opacity = interpolate(
+            distance,
+            [0, ITEM_HEIGHT, ITEM_HEIGHT * 2],
+            [1, 0.5, 0.2],
+            Extrapolate.CLAMP
+        );
+
+        return {
+            transform: [{ scale }],
+            opacity,
+        };
+    });
+
+    return (
+        <View style={styles.wheelItem}>
+            <Animated.Text style={[styles.wheelItemText, { color: colors.text }, animatedStyle]}>
+                {item}
+            </Animated.Text>
+        </View>
+    );
+};
 
 export function ExamModal({ visible, onClose, onSave, initialDate, existingExam, subjects }: ExamModalProps) {
     const { colors, theme } = useTheme();
@@ -47,6 +97,10 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [selectedHour, setSelectedHour] = useState('08');
     const [selectedMinute, setSelectedMinute] = useState('30');
+
+    // Reanimated Shared Values
+    const hourScrollY = useSharedValue(0);
+    const minuteScrollY = useSharedValue(0);
 
     // Subject Picker States
     const [showSubjectPicker, setShowSubjectPicker] = useState(false);
@@ -61,6 +115,9 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
             const [h, m] = existingExam.time.split(':');
             setSelectedHour(h || '08');
             setSelectedMinute(m || '30');
+
+            hourScrollY.value = HOURS.indexOf(h || '08') * ITEM_HEIGHT;
+            minuteScrollY.value = MINUTES.indexOf(m || '30') * ITEM_HEIGHT;
         } else {
             setSubject(subjects[0] || '');
             setSelectedHour('08');
@@ -68,6 +125,9 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
             setRoom('');
             setType('Certamen');
             setNotes('');
+
+            hourScrollY.value = HOURS.indexOf('08') * ITEM_HEIGHT;
+            minuteScrollY.value = MINUTES.indexOf('30') * ITEM_HEIGHT;
         }
     }, [existingExam, visible, subjects]);
 
@@ -93,17 +153,22 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
         onSave(exam);
     };
 
-    const handleHourScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const offset = event.nativeEvent.contentOffset.y;
-        const index = Math.round(offset / ITEM_HEIGHT);
-        if (HOURS[index]) setSelectedHour(HOURS[index]);
-    };
+    const onHourScroll = useAnimatedScrollHandler({
+        onScroll: (event) => {
+            hourScrollY.value = event.contentOffset.y;
+        },
+        onMomentumScrollEnd: (event) => {
+            const index = Math.round(event.contentOffset.y / ITEM_HEIGHT);
+            // We can't update state directly here in a clean way from UI thread to JS thread without worklets,
+            // but for now, we'll use a simpler callback outside or stick to the state update
+        }
+    });
 
-    const handleMinuteScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const offset = event.nativeEvent.contentOffset.y;
-        const index = Math.round(offset / ITEM_HEIGHT);
-        if (MINUTES[index]) setSelectedMinute(MINUTES[index]);
-    };
+    const onMinuteScroll = useAnimatedScrollHandler({
+        onScroll: (event) => {
+            minuteScrollY.value = event.contentOffset.y;
+        }
+    });
 
     return (
         <Modal
@@ -156,7 +221,7 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
                                 </TouchableOpacity>
                             </View>
                             <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-                                <Text style={[styles.label, { color: colors.textSecondary }]}>Sala *</Text>
+                                <Text style={[styles.label, { color: colors.textSecondary }]}>Sala</Text>
                                 <TextInput
                                     style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
                                     placeholder="Eje: B221"
@@ -230,32 +295,32 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
                                     <Ionicons name="close" size={24} color={colors.text} />
                                 </TouchableOpacity>
                             </View>
-                            <FlatList
-                                data={subjects}
-                                keyExtractor={(item) => item}
-                                renderItem={({ item }) => (
-                                    <TouchableOpacity
-                                        style={[styles.subjectItem, { borderBottomColor: colors.border }]}
-                                        onPress={() => {
-                                            setSubject(item);
-                                            setShowSubjectPicker(false);
-                                        }}
-                                    >
-                                        <Text style={[styles.subjectItemText, { color: colors.text }, subject === item && { color: colors.primary, fontWeight: '700' }]}>
-                                            {item}
-                                        </Text>
-                                        {subject === item && <Ionicons name="checkmark" size={20} color={colors.primary} />}
-                                    </TouchableOpacity>
-                                )}
-                                ListEmptyComponent={
+                            <ScrollView style={{ maxHeight: 300 }}>
+                                {subjects.length === 0 ? (
                                     <Text style={{ textAlign: 'center', marginTop: 20, color: colors.textSecondary }}>No hay asignaturas en tu horario.</Text>
-                                }
-                            />
+                                ) : (
+                                    subjects.map((item) => (
+                                        <TouchableOpacity
+                                            key={item}
+                                            style={[styles.subjectItem, { borderBottomColor: colors.border }]}
+                                            onPress={() => {
+                                                setSubject(item);
+                                                setShowSubjectPicker(false);
+                                            }}
+                                        >
+                                            <Text style={[styles.subjectItemText, { color: colors.text }, subject === item && { color: colors.primary, fontWeight: '700' }]}>
+                                                {item}
+                                            </Text>
+                                            {subject === item && <Ionicons name="checkmark" size={20} color={colors.primary} />}
+                                        </TouchableOpacity>
+                                    ))
+                                )}
+                            </ScrollView>
                         </View>
                     </TouchableOpacity>
                 </Modal>
 
-                {/* Modern Wheel Time Picker Overlay */}
+                {/* iOS Style Wheel Time Picker Overlay */}
                 <Modal visible={showTimePicker} transparent animationType="fade">
                     <View style={styles.pickerOverlay}>
                         <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowTimePicker(false)} />
@@ -267,25 +332,17 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
 
                             <View style={styles.wheelContainer}>
                                 {/* Highlight Center Area */}
-                                <View style={[styles.highlightArea, { borderColor: colors.primary + '30', backgroundColor: colors.primary + '10' }]} />
+                                <View style={[styles.highlightArea, { borderColor: colors.border, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]} />
 
                                 <View style={styles.wheelRow}>
                                     {/* Hours Wheel */}
                                     <View style={styles.wheelColumn}>
-                                        <FlatList
+                                        <Animated.FlatList
                                             data={PADDED_HOURS}
                                             keyExtractor={(_, i) => `h-${i}`}
                                             showsVerticalScrollIndicator={false}
-                                            renderItem={({ item }) => (
-                                                <View style={styles.wheelItem}>
-                                                    <Text style={[
-                                                        styles.wheelItemText,
-                                                        { color: colors.textSecondary },
-                                                        selectedHour === item && { color: colors.primary, fontWeight: '900', fontSize: 28 }
-                                                    ]}>
-                                                        {item}
-                                                    </Text>
-                                                </View>
+                                            renderItem={({ item, index }) => (
+                                                <WheelItem item={item} index={index} scrollY={hourScrollY} colors={colors} />
                                             )}
                                             getItemLayout={(_, index) => ({
                                                 length: ITEM_HEIGHT,
@@ -294,8 +351,13 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
                                             })}
                                             initialScrollIndex={HOURS.indexOf(selectedHour)}
                                             snapToInterval={ITEM_HEIGHT}
-                                            onMomentumScrollEnd={handleHourScroll}
+                                            onScroll={onHourScroll}
+                                            onMomentumScrollEnd={(e) => {
+                                                const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+                                                if (HOURS[index]) setSelectedHour(HOURS[index]);
+                                            }}
                                             decelerationRate="fast"
+                                            scrollEventThrottle={16}
                                         />
                                     </View>
 
@@ -303,20 +365,12 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
 
                                     {/* Minutes Wheel */}
                                     <View style={styles.wheelColumn}>
-                                        <FlatList
+                                        <Animated.FlatList
                                             data={PADDED_MINUTES}
                                             keyExtractor={(_, i) => `m-${i}`}
                                             showsVerticalScrollIndicator={false}
-                                            renderItem={({ item }) => (
-                                                <View style={styles.wheelItem}>
-                                                    <Text style={[
-                                                        styles.wheelItemText,
-                                                        { color: colors.textSecondary },
-                                                        selectedMinute === item && { color: colors.primary, fontWeight: '900', fontSize: 28 }
-                                                    ]}>
-                                                        {item}
-                                                    </Text>
-                                                </View>
+                                            renderItem={({ item, index }) => (
+                                                <WheelItem item={item} index={index} scrollY={minuteScrollY} colors={colors} />
                                             )}
                                             getItemLayout={(_, index) => ({
                                                 length: ITEM_HEIGHT,
@@ -325,18 +379,35 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
                                             })}
                                             initialScrollIndex={MINUTES.indexOf(selectedMinute)}
                                             snapToInterval={ITEM_HEIGHT}
-                                            onMomentumScrollEnd={handleMinuteScroll}
+                                            onScroll={onMinuteScroll}
+                                            onMomentumScrollEnd={(e) => {
+                                                const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+                                                if (MINUTES[index]) setSelectedMinute(MINUTES[index]);
+                                            }}
                                             decelerationRate="fast"
+                                            scrollEventThrottle={16}
                                         />
                                     </View>
                                 </View>
+
+                                {/* Fade Gradients */}
+                                <LinearGradient
+                                    colors={[colors.surface, 'transparent']}
+                                    style={[styles.fadeOverlay, { top: 0 }]}
+                                    pointerEvents="none"
+                                />
+                                <LinearGradient
+                                    colors={['transparent', colors.surface]}
+                                    style={[styles.fadeOverlay, { bottom: 0 }]}
+                                    pointerEvents="none"
+                                />
                             </View>
 
                             <TouchableOpacity
-                                style={[styles.confirmBtn, { backgroundColor: colors.primary, marginTop: 20 }]}
+                                style={[styles.confirmBtn, { backgroundColor: colors.primary, marginTop: 24 }]}
                                 onPress={() => setShowTimePicker(false)}
                             >
-                                <Text style={styles.confirmBtnText}>Confirmar</Text>
+                                <Text style={styles.confirmBtnText}>Listo</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -490,11 +561,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     wheelContainer: {
-        height: ITEM_HEIGHT * 5,
+        height: WHEEL_HEIGHT,
         width: '100%',
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 10,
+        overflow: 'hidden',
     },
     highlightArea: {
         position: 'absolute',
@@ -502,7 +574,6 @@ const styles = StyleSheet.create({
         height: ITEM_HEIGHT,
         width: '100%',
         borderRadius: 12,
-        borderWidth: 1,
     },
     wheelRow: {
         flexDirection: 'row',
@@ -520,13 +591,20 @@ const styles = StyleSheet.create({
     },
     wheelItemText: {
         fontSize: 22,
-        fontWeight: '500',
+        fontWeight: '600',
     },
     wheelSeparator: {
         fontSize: 32,
         fontWeight: '800',
         marginHorizontal: 15,
         marginBottom: 4,
+    },
+    fadeOverlay: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        height: ITEM_HEIGHT * 1.5,
+        zIndex: 10,
     },
     confirmBtn: {
         width: '100%',
