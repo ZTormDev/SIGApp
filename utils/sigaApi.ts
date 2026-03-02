@@ -2,8 +2,6 @@ import cheerio from 'react-native-cheerio';
 
 export async function loginToSiga(rut: string, pass: string, server: string): Promise<any[]> {
     try {
-        console.log('1. Sending Login POST via Fetch...');
-
         const formBody = [];
         formBody.push(encodeURIComponent('login') + '=' + encodeURIComponent(rut));
         formBody.push(encodeURIComponent('passwd') + '=' + encodeURIComponent(pass));

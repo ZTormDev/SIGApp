@@ -21,7 +21,15 @@ export default function ExamsScreen() {
     const { colors, theme } = useTheme();
     const [exams, setExams] = useState<Exam[]>([]);
     const [subjects, setSubjects] = useState<string[]>([]);
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const getLocalDateString = () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const [selectedDate, setSelectedDate] = useState(getLocalDateString());
     const [modalVisible, setModalVisible] = useState(false);
     const [editingExam, setEditingExam] = useState<Exam | null>(null);
 
@@ -76,14 +84,18 @@ export default function ExamsScreen() {
             newExams = [...exams, exam];
         }
 
+        // 1. Update UI and storage immediately
         setExams(newExams);
-        await saveExams(newExams);
-
-        // Schedule notifications for the new/updated exam
-        await scheduleExamNotifications(exam);
-
         setModalVisible(false);
         setEditingExam(null);
+
+        try {
+            await saveExams(newExams);
+            // 2. Schedule notifications in the background
+            await scheduleExamNotifications(exam);
+        } catch (error) {
+            console.error("Error saving exam or scheduling notifications:", error);
+        }
     };
 
     const handleDeleteExam = (id: string) => {
@@ -97,11 +109,17 @@ export default function ExamsScreen() {
                     style: "destructive",
                     onPress: async () => {
                         const newExams = exams.filter(e => e.id !== id);
-                        setExams(newExams);
-                        await saveExams(newExams);
 
-                        // Cancel any pending notifications for this exam
-                        await cancelExamNotifications(id);
+                        // 1. Update UI and storage immediately
+                        setExams(newExams);
+
+                        try {
+                            await saveExams(newExams);
+                            // 2. Cancel notifications in background
+                            await cancelExamNotifications(id);
+                        } catch (error) {
+                            console.error("Error deleting exam or cancelling notifications:", error);
+                        }
                     }
                 }
             ]
@@ -150,7 +168,10 @@ export default function ExamsScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                <Animated.View entering={FadeInDown.duration(400).springify()}>
+                <Animated.View
+                    entering={FadeInDown.duration(400).springify()}
+                    layout={Layout.springify()}
+                >
                     <Calendar
                         selectedDate={selectedDate}
                         onDateSelect={setSelectedDate}

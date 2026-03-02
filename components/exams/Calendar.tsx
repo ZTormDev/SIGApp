@@ -66,8 +66,8 @@ export function Calendar({ selectedDate, onDateSelect, examsDates }: CalendarPro
             });
         }
 
-        // Fill next month days
-        const totalCells = days.length > 35 ? 42 : 35;
+        // Fill next month days to complete the weeks
+        const totalCells = Math.ceil(days.length / 7) * 7;
         const remainingCells = totalCells - days.length;
         for (let i = 1; i <= remainingCells; i++) {
             days.push({
@@ -78,12 +78,11 @@ export function Calendar({ selectedDate, onDateSelect, examsDates }: CalendarPro
             });
         }
 
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
         return days.map((item, index) => {
-            const dateObj = new Date(item.year, item.month, item.day);
-            const dateStr = dateObj.toISOString().split('T')[0];
+            const dateStr = `${item.year}-${String(item.month + 1).padStart(2, '0')}-${String(item.day).padStart(2, '0')}`;
             const isSelected = selectedDate === dateStr;
             const isToday = todayStr === dateStr;
             const hasExam = examsDates.includes(dateStr);
@@ -143,7 +142,18 @@ export function Calendar({ selectedDate, onDateSelect, examsDates }: CalendarPro
             </View>
 
             <View style={styles.daysGrid}>
-                {renderDays()}
+                {(() => {
+                    const allDays = renderDays();
+                    const rows = [];
+                    for (let i = 0; i < allDays.length; i += 7) {
+                        rows.push(
+                            <View key={i} style={styles.weekRow}>
+                                {allDays.slice(i, i + 7)}
+                            </View>
+                        );
+                    }
+                    return rows;
+                })()}
             </View>
         </View>
     );
@@ -153,24 +163,23 @@ export function Calendar({ selectedDate, onDateSelect, examsDates }: CalendarPro
 const styles = StyleSheet.create({
     container: {
         borderRadius: 20,
-        padding: 16,
+        padding: 12,
         marginHorizontal: 16,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 10,
         borderWidth: 1,
-        height: 'auto',
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 12,
         paddingHorizontal: 4,
     },
     monthYear: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '800',
         letterSpacing: -0.5,
     },
@@ -179,9 +188,9 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     navBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
         backgroundColor: 'rgba(0,0,0,0.03)',
         justifyContent: 'center',
         alignItems: 'center',
@@ -193,33 +202,35 @@ const styles = StyleSheet.create({
     weekDayText: {
         flex: 1,
         textAlign: 'center',
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '600',
         textTransform: 'uppercase',
         opacity: 0.5,
     },
     daysGrid: {
+        width: '100%',
+    },
+    weekRow: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        height: 'auto',
+        width: '100%',
     },
     dayCell: {
         width: `${100 / 7}%`,
-        aspectRatio: 1,
+        aspectRatio: 1.1,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 12,
-        marginVertical: 2,
+        borderRadius: 10,
+        marginVertical: 1,
     },
     dayText: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '500',
     },
     examIndicator: {
         position: 'absolute',
-        bottom: 6,
-        width: 4,
-        height: 4,
-        borderRadius: 2,
+        bottom: 4,
+        width: 3,
+        height: 3,
+        borderRadius: 1.5,
     }
 });

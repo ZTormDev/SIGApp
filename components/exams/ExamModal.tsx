@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Alert,
+    Dimensions,
     KeyboardAvoidingView,
     Modal,
     Platform,
+    Pressable,
+    Animated as RNAnimated,
     ScrollView,
     StyleSheet,
     Switch,
@@ -14,17 +16,12 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import Animated, {
-    Extrapolate,
-    interpolate,
-    SharedValue,
-    useAnimatedScrollHandler,
-    useAnimatedStyle,
-    useSharedValue
-} from 'react-native-reanimated';
 import { useTheme } from '../../utils/ThemeContext';
 import { requestNotificationPermissions } from '../../utils/notifications';
 import { Exam } from '../../utils/storage';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const AnimatedPressable = RNAnimated.createAnimatedComponent(Pressable);
 
 interface ExamModalProps {
     visible: boolean;
@@ -36,58 +33,7 @@ interface ExamModalProps {
 }
 
 const EXAM_TYPES = ['Certamen', 'Control', 'Tarea', 'Otro'];
-const ITEM_HEIGHT = 50;
-const VISIBLE_ITEMS = 5;
-const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
-
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
-
-// Padding with empty items for the wheel centering
-const PADDED_HOURS = ["", "", ...HOURS, "", ""];
-const PADDED_MINUTES = ["", "", ...MINUTES, "", ""];
-
-interface WheelItemProps {
-    item: string;
-    index: number;
-    scrollY: SharedValue<number>;
-    colors: any;
-}
-
-const WheelItem = ({ item, index, scrollY, colors }: WheelItemProps) => {
-    const animatedStyle = useAnimatedStyle(() => {
-        const itemPosition = (index - 0) * ITEM_HEIGHT;
-        const middle = scrollY.value;
-        const distance = Math.abs(itemPosition - middle);
-
-        const scale = interpolate(
-            distance,
-            [0, ITEM_HEIGHT, ITEM_HEIGHT * 2],
-            [1.4, 0.9, 0.7],
-            Extrapolate.CLAMP
-        );
-
-        const opacity = interpolate(
-            distance,
-            [0, ITEM_HEIGHT, ITEM_HEIGHT * 2],
-            [1, 0.5, 0.2],
-            Extrapolate.CLAMP
-        );
-
-        return {
-            transform: [{ scale }],
-            opacity,
-        };
-    });
-
-    return (
-        <View style={styles.wheelItem}>
-            <Animated.Text style={[styles.wheelItemText, { color: colors.text }, animatedStyle]}>
-                {item}
-            </Animated.Text>
-        </View>
-    );
-};
 
 export function ExamModal({ visible, onClose, onSave, initialDate, existingExam, subjects }: ExamModalProps) {
     const { colors, theme } = useTheme();
@@ -101,13 +47,53 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [selectedHour, setSelectedHour] = useState('08');
     const [selectedMinute, setSelectedMinute] = useState('30');
-
-    // Reanimated Shared Values
-    const hourScrollY = useSharedValue(0);
-    const minuteScrollY = useSharedValue(0);
+    const [activeMode, setActiveMode] = useState<'hour' | 'minute'>('hour');
 
     // Subject Picker States
     const [showSubjectPicker, setShowSubjectPicker] = useState(false);
+
+    // Manual Animations
+    const translateY = useRef(new RNAnimated.Value(SCREEN_HEIGHT)).current;
+    const opacity = useRef(new RNAnimated.Value(0)).current;
+    const [isRendering, setIsRendering] = useState(false);
+
+    useEffect(() => {
+        if (visible) {
+            setIsRendering(true);
+            RNAnimated.parallel([
+                RNAnimated.spring(translateY, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                    speed: 12,
+                    bounciness: 0,
+                }),
+                RNAnimated.timing(opacity, {
+                    toValue: 1,
+                    duration: 250,
+                    useNativeDriver: true,
+                })
+            ]).start();
+            requestNotificationPermissions();
+        } else {
+            RNAnimated.parallel([
+                RNAnimated.spring(translateY, {
+                    toValue: SCREEN_HEIGHT,
+                    useNativeDriver: true,
+                    speed: 12,
+                    bounciness: 0,
+                }),
+                RNAnimated.timing(opacity, {
+                    toValue: 0,
+                    duration: 150,
+                    useNativeDriver: true,
+                })
+            ]).start((result) => {
+                if (result.finished) {
+                    setIsRendering(false);
+                }
+            });
+        }
+    }, [visible, translateY, opacity]);
 
     useEffect(() => {
         if (existingExam) {
@@ -120,11 +106,6 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
             const [h, m] = existingExam.time.split(':');
             setSelectedHour(h || '08');
             setSelectedMinute(m || '30');
-
-            const hIndex = HOURS.indexOf(h || '08');
-            const mIndex = MINUTES.indexOf(m || '30');
-            hourScrollY.value = hIndex * ITEM_HEIGHT;
-            minuteScrollY.value = mIndex * ITEM_HEIGHT;
         } else {
             setSubject(subjects[0] || '');
             setSelectedHour('08');
@@ -133,21 +114,17 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
             setType('Certamen');
             setNotes('');
             setNotificationsEnabled(true);
-
-            hourScrollY.value = HOURS.indexOf('08') * ITEM_HEIGHT;
-            minuteScrollY.value = MINUTES.indexOf('30') * ITEM_HEIGHT;
         }
-    }, [existingExam, visible, subjects]);
-
-    useEffect(() => {
-        if (visible) {
-            requestNotificationPermissions();
-        }
-    }, [visible]);
+    }, [existingExam, subjects, visible]);
 
     const handleSave = () => {
         if (!subject) {
             Alert.alert("Faltan datos", "Por favor selecciona una asignatura.");
+            return;
+        }
+
+        if (!room.trim()) {
+            Alert.alert("Faltan datos", "Por favor ingresa la sala (puedes poner 'Online' o 'Por confirmar' si no la sabes).");
             return;
         }
 
@@ -164,49 +141,51 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
         onSave(exam);
     };
 
-    const onHourScroll = useAnimatedScrollHandler({
-        onScroll: (event) => {
-            hourScrollY.value = event.contentOffset.y;
-        }
-    });
-
-    const onMinuteScroll = useAnimatedScrollHandler({
-        onScroll: (event) => {
-            minuteScrollY.value = event.contentOffset.y;
-        }
-    });
+    if (!isRendering && !visible) return null;
 
     return (
-        <Modal
-            visible={visible}
-            animationType="slide"
-            transparent
-            onRequestClose={onClose}
-        >
+        <View style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>
+            <AnimatedPressable
+                style={[
+                    StyleSheet.absoluteFill,
+                    { backgroundColor: 'rgba(0,0,0,0.4)', opacity }
+                ]}
+                onPress={onClose}
+            />
+
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.overlay}
+                pointerEvents="box-none"
             >
-                <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
+                <RNAnimated.View style={[
+                    styles.sheet,
+                    { backgroundColor: colors.surface, transform: [{ translateY }] }
+                ]}>
                     <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
                     <View style={styles.header}>
                         <Text style={[styles.title, { color: colors.text }]}>
                             {existingExam ? 'Editar Evaluación' : 'Nueva Evaluación'}
                         </Text>
-                        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                        <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.background }]}>
                             <Ionicons name="close" size={24} color={colors.textSecondary} />
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                    <ScrollView
+                        style={styles.content}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        scrollEnabled={!showSubjectPicker && !showTimePicker}
+                    >
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: colors.textSecondary }]}>Asignatura</Text>
+                            <Text style={[styles.label, { color: colors.textSecondary }]}>Asignatura *</Text>
                             <TouchableOpacity
-                                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, justifyContent: 'center' }]}
+                                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, justifyContent: 'center', height: 'auto', paddingVertical: 12 }]}
                                 onPress={() => setShowSubjectPicker(true)}
                             >
-                                <Text style={{ color: subject ? colors.text : colors.textSecondary + '88', fontSize: 16 }}>
+                                <Text style={{ color: subject ? colors.text : colors.textSecondary + '88', fontSize: 16, width: '80%' }}>
                                     {subject || "Seleccionar asignatura..."}
                                 </Text>
                                 <Ionicons name="chevron-down" size={20} color={colors.textSecondary} style={{ position: 'absolute', right: 16 }} />
@@ -227,7 +206,7 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
                                 </TouchableOpacity>
                             </View>
                             <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-                                <Text style={[styles.label, { color: colors.textSecondary }]}>Sala</Text>
+                                <Text style={[styles.label, { color: colors.textSecondary }]}>Sala *</Text>
                                 <TextInput
                                     style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
                                     placeholder="Eje: B221"
@@ -238,10 +217,10 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
                             </View>
                         </View>
 
-                        <View style={[styles.inputGroup, styles.notificationRow]}>
+                        <View style={[styles.inputGroup, styles.notificationRow, theme === 'dark' ? { backgroundColor: colors.background } : { backgroundColor: 'rgba(0, 0, 0, 0.02)' }]}>
                             <View>
                                 <Text style={[styles.label, { color: colors.textSecondary, marginBottom: 0 }]}>Notificaciones</Text>
-                                <Text style={{ color: colors.textSecondary, fontSize: 12, opacity: 0.7 }}>Recordatorios 7d, 3d, 1d, 1h y al momento</Text>
+                                <Text style={{ color: colors.textSecondary, fontSize: 12, opacity: 0.7 }}>Alertas: 7d, 3d, 1d y 1h antes</Text>
                             </View>
                             <Switch
                                 value={notificationsEnabled}
@@ -296,30 +275,32 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
                         >
                             <Text style={styles.saveBtnText}>Guardar Evaluación</Text>
                         </TouchableOpacity>
-
                         <View style={{ height: 40 }} />
                     </ScrollView>
-                </View>
+                </RNAnimated.View>
+            </KeyboardAvoidingView>
 
-                {/* Subject Picker Overlay */}
-                <Modal visible={showSubjectPicker} transparent animationType="fade">
-                    <TouchableOpacity
-                        style={styles.pickerOverlay}
-                        activeOpacity={1}
-                        onPress={() => setShowSubjectPicker(false)}
-                    >
-                        <View style={[styles.pickerContent, { backgroundColor: colors.surface }]}>
-                            <View style={styles.pickerHeader}>
-                                <Text style={[styles.pickerTitle, { color: colors.text }]}>Seleccionar Asignatura</Text>
-                                <TouchableOpacity onPress={() => setShowSubjectPicker(false)}>
-                                    <Ionicons name="close" size={24} color={colors.text} />
-                                </TouchableOpacity>
-                            </View>
-                            <ScrollView style={{ maxHeight: 300 }}>
-                                {subjects.length === 0 ? (
-                                    <Text style={{ textAlign: 'center', marginTop: 20, color: colors.textSecondary }}>No hay asignaturas en tu horario.</Text>
-                                ) : (
-                                    subjects.map((item) => (
+            {/* Subject Picker Overlay */}
+            <Modal visible={showSubjectPicker} transparent animationType="fade" onRequestClose={() => setShowSubjectPicker(false)}>
+                <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+                    <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowSubjectPicker(false)} />
+                    <View style={[styles.pickerContent, { backgroundColor: colors.surface }]}>
+                        <View style={styles.pickerHeader}>
+                            <Text style={[styles.pickerTitle, { color: colors.text }]}>Seleccionar Asignatura</Text>
+                            <TouchableOpacity onPress={() => setShowSubjectPicker(false)}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ maxHeight: 350 }}>
+                            {subjects.length === 0 ? (
+                                <Text style={{ textAlign: 'center', paddingVertical: 20, color: colors.textSecondary }}>No hay asignaturas en tu horario.</Text>
+                            ) : (
+                                <ScrollView
+                                    nestedScrollEnabled={true}
+                                    contentContainerStyle={{ paddingBottom: 10 }}
+                                    keyboardShouldPersistTaps="handled"
+                                >
+                                    {subjects.map((item) => (
                                         <TouchableOpacity
                                             key={item}
                                             style={[styles.subjectItem, { borderBottomColor: colors.border }]}
@@ -331,116 +312,123 @@ export function ExamModal({ visible, onClose, onSave, initialDate, existingExam,
                                             <Text style={[styles.subjectItemText, { color: colors.text }, subject === item && { color: colors.primary, fontWeight: '700' }]}>
                                                 {item}
                                             </Text>
-                                            {subject === item && <Ionicons name="checkmark" size={20} color={colors.primary} />}
+                                            {subject === item && <Ionicons name="checkmark" size={20} color={colors.primary} style={{ position: 'absolute', right: 20 }} />}
                                         </TouchableOpacity>
-                                    ))
-                                )}
-                            </ScrollView>
-                        </View>
-                    </TouchableOpacity>
-                </Modal>
-
-                {/* iOS Style Wheel Time Picker Overlay */}
-                <Modal visible={showTimePicker} transparent animationType="fade">
-                    <View style={styles.pickerOverlay}>
-                        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowTimePicker(false)} />
-
-                        <View style={[styles.wheelPickerContent, { backgroundColor: colors.surface }]}>
-                            <View style={styles.pickerHeader}>
-                                <Text style={[styles.pickerTitle, { color: colors.text }]}>Seleccionar Hora</Text>
-                            </View>
-
-                            <View style={styles.wheelContainer}>
-                                {/* Highlight Center Area */}
-                                <View style={[styles.highlightArea, { borderColor: colors.border, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]} />
-
-                                <View style={styles.wheelRow}>
-                                    {/* Hours Wheel */}
-                                    <View style={styles.wheelColumn}>
-                                        <Animated.FlatList
-                                            data={PADDED_HOURS}
-                                            keyExtractor={(_, i) => `h-${i}`}
-                                            showsVerticalScrollIndicator={false}
-                                            renderItem={({ item, index }) => (
-                                                <WheelItem item={item} index={index} scrollY={hourScrollY} colors={colors} />
-                                            )}
-                                            getItemLayout={(_, index) => ({
-                                                length: ITEM_HEIGHT,
-                                                offset: ITEM_HEIGHT * index,
-                                                index,
-                                            })}
-                                            initialScrollIndex={HOURS.indexOf(selectedHour)}
-                                            snapToInterval={ITEM_HEIGHT}
-                                            onScroll={onHourScroll}
-                                            onMomentumScrollEnd={(e) => {
-                                                const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
-                                                if (HOURS[index]) setSelectedHour(HOURS[index]);
-                                            }}
-                                            decelerationRate="fast"
-                                            scrollEventThrottle={16}
-                                        />
-                                    </View>
-
-                                    <Text style={[styles.wheelSeparator, { color: colors.text }]}>:</Text>
-
-                                    {/* Minutes Wheel */}
-                                    <View style={styles.wheelColumn}>
-                                        <Animated.FlatList
-                                            data={PADDED_MINUTES}
-                                            keyExtractor={(_, i) => `m-${i}`}
-                                            showsVerticalScrollIndicator={false}
-                                            renderItem={({ item, index }) => (
-                                                <WheelItem item={item} index={index} scrollY={minuteScrollY} colors={colors} />
-                                            )}
-                                            getItemLayout={(_, index) => ({
-                                                length: ITEM_HEIGHT,
-                                                offset: ITEM_HEIGHT * index,
-                                                index,
-                                            })}
-                                            initialScrollIndex={MINUTES.indexOf(selectedMinute)}
-                                            snapToInterval={ITEM_HEIGHT}
-                                            onScroll={onMinuteScroll}
-                                            onMomentumScrollEnd={(e) => {
-                                                const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
-                                                if (MINUTES[index]) setSelectedMinute(MINUTES[index]);
-                                            }}
-                                            decelerationRate="fast"
-                                            scrollEventThrottle={16}
-                                        />
-                                    </View>
-                                </View>
-
-                                {/* Fade Gradients */}
-                                <LinearGradient
-                                    colors={[colors.surface, 'transparent']}
-                                    style={[styles.fadeOverlay, { top: 0 }]}
-                                    pointerEvents="none"
-                                />
-                                <LinearGradient
-                                    colors={['transparent', colors.surface]}
-                                    style={[styles.fadeOverlay, { bottom: 0 }]}
-                                    pointerEvents="none"
-                                />
-                            </View>
-
-                            <TouchableOpacity
-                                style={[styles.confirmBtn, { backgroundColor: colors.primary, marginTop: 24 }]}
-                                onPress={() => setShowTimePicker(false)}
-                            >
-                                <Text style={styles.confirmBtnText}>Listo</Text>
-                            </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            )}
                         </View>
                     </View>
-                </Modal>
-            </KeyboardAvoidingView>
-        </Modal>
+                </View>
+            </Modal>
+
+            {/* Premium Modern Time Picker Overlay */}
+            <Modal visible={showTimePicker} transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
+                <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+                    <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowTimePicker(false)} />
+                    <View style={[styles.modernPickerContainer, { backgroundColor: colors.surface }]}>
+                        <View style={styles.pickerHeader}>
+                            <Text style={[styles.pickerTitle, { color: colors.text }]}>Seleccionar Hora</Text>
+                            <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Large Digital Display */}
+                        <View style={styles.displayContainer}>
+                            <TouchableOpacity
+                                style={[styles.displayCard, activeMode === 'hour' && { backgroundColor: theme === 'dark' ? colors.primary + '30' : colors.primary + '15', borderColor: colors.primary }]}
+                                onPress={() => setActiveMode('hour')}
+                            >
+                                <Text style={[styles.displayText, { color: activeMode === 'hour' ? colors.primary : colors.text }]}>{selectedHour}</Text>
+                                <Text style={[styles.displayLabel, { color: activeMode === 'hour' ? colors.primary : colors.textSecondary }]}>HORA</Text>
+                            </TouchableOpacity>
+
+                            <Text style={[styles.displaySeparator, { color: colors.border }]}>:</Text>
+
+                            <TouchableOpacity
+                                style={[styles.displayCard, activeMode === 'minute' && { backgroundColor: theme === 'dark' ? colors.primary + '30' : colors.primary + '15', borderColor: colors.primary }]}
+                                onPress={() => setActiveMode('minute')}
+                            >
+                                <Text style={[styles.displayText, { color: activeMode === 'minute' ? colors.primary : colors.text }]}>{selectedMinute}</Text>
+                                <Text style={[styles.displayLabel, { color: activeMode === 'minute' ? colors.primary : colors.textSecondary }]}>MINUTO</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Selector Grid */}
+                        <View style={styles.gridContainer}>
+                            {activeMode === 'hour' ? (
+                                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridContent}>
+                                    <View style={styles.gridRow}>
+                                        {HOURS.map((h) => (
+                                            <TouchableOpacity
+                                                key={h}
+                                                style={[styles.gridItem, selectedHour === h && { backgroundColor: colors.primary }]}
+                                                onPress={() => {
+                                                    setSelectedHour(h);
+                                                    setActiveMode('minute');
+                                                }}
+                                            >
+                                                <Text style={[styles.gridItemText, { color: selectedHour === h ? '#fff' : colors.text }]}>{h}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </ScrollView>
+                            ) : (
+                                <View style={styles.gridContent}>
+                                    <View style={styles.gridRow}>
+                                        {/* Quick select minutes + 00 */}
+                                        {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map((m) => (
+                                            <TouchableOpacity
+                                                key={m}
+                                                style={[styles.gridItem, selectedMinute === m && { backgroundColor: colors.primary }]}
+                                                onPress={() => setSelectedMinute(m)}
+                                            >
+                                                <Text style={[styles.gridItemText, { color: selectedMinute === m ? '#fff' : colors.text }]}>{m}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                    <View style={styles.minuteFineAdjust}>
+                                        <TouchableOpacity
+                                            style={[styles.adjustBtn, { backgroundColor: colors.background }]}
+                                            onPress={() => {
+                                                const current = parseInt(selectedMinute);
+                                                setSelectedMinute(Math.max(0, current - 1).toString().padStart(2, '0'));
+                                            }}
+                                        >
+                                            <Ionicons name="remove" size={24} color={colors.text} />
+                                        </TouchableOpacity>
+                                        <Text style={[styles.fineText, { color: colors.textSecondary }]}>Ajuste fino</Text>
+                                        <TouchableOpacity
+                                            style={[styles.adjustBtn, { backgroundColor: colors.background }]}
+                                            onPress={() => {
+                                                const current = parseInt(selectedMinute);
+                                                setSelectedMinute(Math.min(59, current + 1).toString().padStart(2, '0'));
+                                            }}
+                                        >
+                                            <Ionicons name="add" size={24} color={colors.text} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+
+                        <TouchableOpacity
+                            style={[styles.confirmBtn, { backgroundColor: colors.primary }]}
+                            onPress={() => setShowTimePicker(false)}
+                        >
+                            <Text style={styles.confirmBtnText}>Listo</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'flex-end',
     },
     sheet: {
@@ -448,6 +436,11 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 32,
         maxHeight: '85%',
         paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 20,
     },
     handle: {
         width: 40,
@@ -473,7 +466,6 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: 'rgba(0,0,0,0.05)',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -481,7 +473,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
     },
     inputGroup: {
-        marginBottom: 20,
+        marginBottom: 12,
     },
     row: {
         flexDirection: 'row',
@@ -490,10 +482,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.02)',
-        padding: 16,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
         borderRadius: 16,
-        marginTop: 4,
     },
     label: {
         fontSize: 13,
@@ -546,18 +537,12 @@ const styles = StyleSheet.create({
         fontSize: 17,
         fontWeight: '800',
     },
-    pickerOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
     pickerContent: {
         width: '100%',
         maxHeight: '70%',
         borderRadius: 24,
         padding: 20,
+        elevation: 10,
     },
     pickerHeader: {
         flexDirection: 'row',
@@ -578,68 +563,98 @@ const styles = StyleSheet.create({
     },
     subjectItemText: {
         fontSize: 16,
-        flex: 1,
+        width: '80%',
     },
-
-    // Wheel Picker Styles
-    wheelPickerContent: {
+    modernPickerContainer: {
         width: '100%',
         borderRadius: 32,
         padding: 24,
-        alignItems: 'center',
+        maxHeight: '80%',
     },
-    wheelContainer: {
-        height: WHEEL_HEIGHT,
-        width: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 10,
-        overflow: 'hidden',
-    },
-    highlightArea: {
-        position: 'absolute',
-        top: ITEM_HEIGHT * 2,
-        height: ITEM_HEIGHT,
-        width: '100%',
-        borderRadius: 12,
-    },
-    wheelRow: {
+    displayContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        height: '100%',
-    },
-    wheelColumn: {
-        width: 80,
-        height: '100%',
-    },
-    wheelItem: {
-        height: ITEM_HEIGHT,
         justifyContent: 'center',
+        marginVertical: 24,
+        gap: 12,
+    },
+    displayCard: {
+        width: 100,
+        height: 100,
+        borderRadius: 24,
+        borderWidth: 2,
+        borderColor: 'transparent',
         alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0,0,0,0.03)',
     },
-    wheelItemText: {
-        fontSize: 22,
-        fontWeight: '600',
-    },
-    wheelSeparator: {
-        fontSize: 32,
+    displayText: {
+        fontSize: 36,
         fontWeight: '800',
-        marginHorizontal: 15,
-        marginBottom: 4,
     },
-    fadeOverlay: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        height: ITEM_HEIGHT * 1.5,
-        zIndex: 10,
+    displayLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        marginTop: 4,
+    },
+    displaySeparator: {
+        fontSize: 40,
+        fontWeight: '300',
+    },
+    gridContainer: {
+        height: 280,
+        marginBottom: 20,
+    },
+    gridContent: {
+        paddingBottom: 10,
+    },
+    gridRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: 10,
+    },
+    gridItem: {
+        width: 55,
+        height: 55,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0,0,0,0.02)',
+    },
+    gridItemText: {
+        fontSize: 17,
+        fontWeight: '700',
+    },
+    minuteFineAdjust: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 20,
+        gap: 20,
+    },
+    adjustBtn: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    fineText: {
+        fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'uppercase',
     },
     confirmBtn: {
-        width: '100%',
         height: 56,
+        width: '100%',
         borderRadius: 16,
-        justifyContent: 'center',
         alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
     },
     confirmBtnText: {
         color: '#fff',

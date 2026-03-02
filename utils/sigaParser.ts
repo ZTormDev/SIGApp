@@ -4,9 +4,6 @@ import { UserProfile } from './storage';
 export function parseProfileHtml(html: string): UserProfile {
     const $ = cheerio.load(html);
 
-    console.log('[Parser] Profile HTML length:', html.length);
-    console.log('[Parser] Profile HTML preview:', html.substring(0, 800));
-
     function findByNextTd(label: string): string {
         let value = '';
         const lowerLabel = label.toLowerCase();
@@ -151,11 +148,6 @@ export function parseProfileHtml(html: string): UserProfile {
         else if (html.toLowerCase().includes('titulado')) situation = 'Titulado';
         else situation = 'Alumno Regular'; // Default asumido
     }
-
-    console.log('[Parser] Extracted fields:', {
-        fullName, rut, career, campus, jornada, rol,
-        emailUsm, emailPersonal, situation, lastEnrollment, plan
-    });
 
     const nameParts = fullName.split(' ').filter(Boolean);
     let firstName = fullName;

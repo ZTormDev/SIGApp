@@ -2,7 +2,7 @@
   "expo": {
     "name": "SIGApp",
     "slug": "SIGApp",
-    "owner": "ztormdev",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/sigapp-icons/appstore.png",
     "scheme": "sigapp",
@@ -14,7 +14,6 @@
     },
     "android": {
       "package": "com.ztormdev.sigapp",
-      "versionCode": 1,
       "icon": "./assets/images/sigapp-icons/playstore.png",
       "predictiveBackGestureEnabled": false
     },
@@ -36,7 +35,8 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

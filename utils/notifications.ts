@@ -8,6 +8,8 @@ Notifications.setNotificationHandler({
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
     }),
 });
 
@@ -41,53 +43,61 @@ export async function requestNotificationPermissions() {
 export async function scheduleExamNotifications(exam: Exam) {
     if (Platform.OS === 'web') return;
 
-    // 1. First, cancel any existing notifications for this exam
-    await cancelExamNotifications(exam.id);
+    try {
+        // 1. First, cancel any existing notifications for this exam
+        await cancelExamNotifications(exam.id);
 
-    if (!exam.notificationsEnabled) return;
+        if (!exam.notificationsEnabled) return;
 
-    // Verify/Request permissions
-    const hasPermission = await requestNotificationPermissions();
-    if (!hasPermission) return;
+        // Verify/Request permissions
+        const hasPermission = await requestNotificationPermissions();
+        if (!hasPermission) return;
 
-    const [year, month, day] = exam.date.split('-').map(Number);
-    const [hour, minute] = exam.time.split(':').map(Number);
+        const [year, month, day] = exam.date.split('-').map(Number);
+        const [hour, minute] = exam.time.split(':').map(Number);
 
-    const examDate = new Date(year, month - 1, day, hour, minute);
-    const now = new Date();
+        // Date object for local time
+        const examDate = new Date(year, month - 1, day, hour, minute);
+        const now = new Date();
 
-    // Define reminders: 7 days, 3 days, 1 day, 1 hour, at the time
-    const reminders = [
-        { label: 'en 7 días', ms: 7 * 24 * 60 * 60 * 1000 },
-        { label: 'en 3 días', ms: 3 * 24 * 60 * 60 * 1000 },
-        { label: 'mañana', ms: 24 * 60 * 60 * 1000 },
-        { label: 'en 1 hora', ms: 60 * 60 * 1000 },
-        { label: 'AHORA', ms: 0 },
-    ];
+        // If the exam is in the past, don't schedule anything
+        if (examDate <= now) return;
 
-    for (const reminder of reminders) {
-        const triggerDate = new Date(examDate.getTime() - reminder.ms);
+        // Define reminders: 7 days, 3 days, 1 day, 1 hour, at the time
+        const reminders = [
+            { label: 'en 7 días', ms: 7 * 24 * 60 * 60 * 1000 },
+            { label: 'en 3 días', ms: 3 * 24 * 60 * 60 * 1000 },
+            { label: 'mañana', ms: 24 * 60 * 60 * 1000 },
+            { label: 'en 1 hora', ms: 60 * 60 * 1000 },
+            { label: 'AHORA', ms: 0 },
+        ];
 
-        // Only schedule if the trigger time is in the future
-        if (triggerDate > now) {
-            const secondsFromNow = Math.floor((triggerDate.getTime() - now.getTime()) / 1000);
+        const schedulingPromises = reminders.map(async (reminder) => {
+            const triggerDate = new Date(examDate.getTime() - reminder.ms);
 
-            // Use time interval trigger (seconds) as it's very reliable
-            await Notifications.scheduleNotificationAsync({
-                content: {
-                    title: `📝 ${exam.type}: ${exam.subject}`,
-                    body: reminder.ms === 0
-                        ? `¡Es el momento! Tu ${exam.type} comienza ahora en ${exam.room}.`
-                        : `Tu ${exam.type} es ${reminder.label} en la sala ${exam.room}.`,
-                    data: { examId: exam.id },
-                    sound: true,
-                },
-                trigger: {
-                    seconds: secondsFromNow > 0 ? secondsFromNow : 1,
-                    repeats: false
-                },
-            });
-        }
+            // Only schedule if the trigger time is in the future
+            if (triggerDate > now) {
+                return Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: `📝 ${exam.type}: ${exam.subject}`,
+                        body: reminder.ms === 0
+                            ? `¡Es el momento! Tu ${exam.type} comienza ahora en ${exam.room}.`
+                            : `Tu ${exam.type} es ${reminder.label} en la sala ${exam.room}.`,
+                        data: { examId: exam.id },
+                        sound: true,
+                        priority: Notifications.AndroidNotificationPriority.MAX,
+                    },
+                    trigger: {
+                        date: triggerDate,
+                    } as Notifications.DateTriggerInput,
+                });
+            }
+            return null;
+        });
+
+        await Promise.all(schedulingPromises);
+    } catch (error) {
+        console.error("Error scheduling exam notifications:", error);
     }
 }
 
@@ -96,10 +106,12 @@ export async function cancelExamNotifications(examId: string) {
 
     try {
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-        for (const notif of scheduled) {
-            if (notif.content.data?.examId === examId) {
-                await Notifications.cancelScheduledNotificationAsync(notif.identifier);
-            }
+        const cancelPromises = scheduled
+            .filter(notif => notif.content.data?.examId === examId)
+            .map(notif => Notifications.cancelScheduledNotificationAsync(notif.identifier));
+
+        if (cancelPromises.length > 0) {
+            await Promise.all(cancelPromises);
         }
     } catch (e) {
         console.error("Error cancelling notifications:", e);

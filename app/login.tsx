@@ -60,16 +60,6 @@ export default function LoginScreen() {
         try {
             const scheduleData = parseHtmlSchedule(data.scheduleHtml);
             const profileData = parseProfileHtml(data.profileHtml);
-            for (let r = 0; r < scheduleData.length; r++) {
-                for (let c = 0; c < scheduleData[r].length; c++) {
-                    const cell = scheduleData[r][c] as any;
-                    if (cell && cell.isFilled) {
-                        if (cell.type === 'Tope' || cell.subject === 'TOPE') {
-                            console.log(`[TOPE FOUND] Row ${r}, Col ${c}:`, JSON.stringify(cell));
-                        }
-                    }
-                }
-            }
 
             if (rememberMe) {
                 await saveCredentials(rut, password, server);

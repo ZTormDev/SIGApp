@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
@@ -64,7 +65,7 @@ export default function SettingsScreen() {
                     <SettingsItem
                         icon="information-circle-outline"
                         label="Versión"
-                        value="1.0.0"
+                        value={Constants.expoConfig?.version || 'null'}
                     />
                     <SettingsItem
                         icon="school-outline"
