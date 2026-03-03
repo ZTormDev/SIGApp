@@ -1,7 +1,7 @@
 {
   "name": "sigapp",
   "main": "expo-router/entry",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "scripts": {
     "start": "expo start",
     "build": "TMPDIR=/home/ztorm/tmp-eas-build npx eas build --profile production --platform android --local --output ./builds",

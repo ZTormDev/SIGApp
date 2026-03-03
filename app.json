@@ -2,7 +2,7 @@
   "expo": {
     "name": "SIGApp",
     "slug": "SIGApp",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/sigapp-icons/appstore.png",
     "scheme": "sigapp",

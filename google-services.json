@@ -1,1 +1,30 @@
-# example
+{
+  "project_info": {
+    "project_number": "241807562375",
+    "firebase_url": "https://sigapp-dfd97-default-rtdb.firebaseio.com",
+    "project_id": "sigapp-dfd97",
+    "storage_bucket": "sigapp-dfd97.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:241807562375:android:ac9b232686fca873e74a22",
+        "android_client_info": {
+          "package_name": "com.ztormdev.sigapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_SD9eALxTXImrzHpN6unlVWpAdcQW86M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
