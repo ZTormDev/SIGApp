@@ -1,119 +1,142 @@
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
-import { Exam } from './storage';
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+import { Exam } from "./storage";
 
-// Configure notification behavior
+// ─── Foreground handler ─────────────────────────────────────────────
 Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-    }),
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
 });
 
-export async function requestNotificationPermissions() {
-    if (Platform.OS === 'web') return false;
+// ─── Channel (Android) ─────────────────────────────────────────────
+async function setupChannel(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync("exams", {
+    name: "Evaluaciones",
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: "#FF231F7C",
+    sound: "default",
+    enableVibrate: true,
+    showBadge: true,
+  });
+}
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
+// ─── Permissions ────────────────────────────────────────────────────
+async function ensurePermissions(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  if (existing === "granted") return true;
+  const { status } = await Notifications.requestPermissionsAsync();
+  return status === "granted";
+}
 
-    if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-    }
+// ─── Init (call once at app start) ──────────────────────────────────
+export async function initNotifications(): Promise<void> {
+  if (Platform.OS === "web") return;
+  await setupChannel();
+  await ensurePermissions();
+}
 
-    if (finalStatus !== 'granted') {
-        return false;
-    }
-
-    if (Platform.OS === 'android') {
-        Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#FF231F7C',
-        });
-    }
-
+// ─── Test (immediate) ───────────────────────────────────────────────
+export async function sendTestNotification(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  try {
+    if (!(await ensurePermissions())) return false;
+    await setupChannel();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "🔔 Notificación de prueba",
+        body: "¡Las notificaciones funcionan correctamente!",
+        sound: "default",
+      },
+      trigger: null,
+    });
     return true;
+  } catch (e) {
+    console.error("sendTestNotification:", e);
+    return false;
+  }
 }
 
-export async function scheduleExamNotifications(exam: Exam) {
-    if (Platform.OS === 'web') return;
+// ─── Schedule exam reminders ────────────────────────────────────────
+// Uses TIME_INTERVAL (seconds from now) — the standard trigger type
+// recommended by expo-notifications. The channelId is placed inside
+// the trigger object (not content) per the official API.
+export async function scheduleExamNotifications(exam: Exam): Promise<void> {
+  if (Platform.OS === "web") return;
+
+  await cancelExamNotifications(exam.id);
+  if (!exam.notificationsEnabled) return;
+  if (!(await ensurePermissions())) return;
+  await setupChannel();
+
+  const [y, m, d] = exam.date.split("-").map(Number);
+  const [h, min] = exam.time.split(":").map(Number);
+  const examMs = new Date(y, m - 1, d, h, min).getTime();
+  const nowMs = Date.now();
+  if (examMs <= nowMs) return;
+
+  const reminders = [
+    { label: "en 7 días", offset: 7 * 86400000 },
+    { label: "en 3 días", offset: 3 * 86400000 },
+    { label: "mañana", offset: 86400000 },
+    { label: "en 1 hora", offset: 3600000 },
+    { label: "AHORA", offset: 0 },
+  ];
+
+  for (const r of reminders) {
+    const secs = Math.floor((examMs - r.offset - nowMs) / 1000);
+    if (secs < 5) continue; // must be ≥5 s in the future
 
     try {
-        // 1. First, cancel any existing notifications for this exam
-        await cancelExamNotifications(exam.id);
-
-        if (!exam.notificationsEnabled) return;
-
-        // Verify/Request permissions
-        const hasPermission = await requestNotificationPermissions();
-        if (!hasPermission) return;
-
-        const [year, month, day] = exam.date.split('-').map(Number);
-        const [hour, minute] = exam.time.split(':').map(Number);
-
-        // Date object for local time
-        const examDate = new Date(year, month - 1, day, hour, minute);
-        const now = new Date();
-
-        // If the exam is in the past, don't schedule anything
-        if (examDate <= now) return;
-
-        // Define reminders: 7 days, 3 days, 1 day, 1 hour, at the time
-        const reminders = [
-            { label: 'en 7 días', ms: 7 * 24 * 60 * 60 * 1000 },
-            { label: 'en 3 días', ms: 3 * 24 * 60 * 60 * 1000 },
-            { label: 'mañana', ms: 24 * 60 * 60 * 1000 },
-            { label: 'en 1 hora', ms: 60 * 60 * 1000 },
-            { label: 'AHORA', ms: 0 },
-        ];
-
-        const schedulingPromises = reminders.map(async (reminder) => {
-            const triggerDate = new Date(examDate.getTime() - reminder.ms);
-
-            // Only schedule if the trigger time is in the future
-            if (triggerDate > now) {
-                return Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: `📝 ${exam.type}: ${exam.subject}`,
-                        body: reminder.ms === 0
-                            ? `¡Es el momento! Tu ${exam.type} comienza ahora en ${exam.room}.`
-                            : `Tu ${exam.type} es ${reminder.label} en la sala ${exam.room}.`,
-                        data: { examId: exam.id },
-                        sound: true,
-                        priority: Notifications.AndroidNotificationPriority.MAX,
-                    },
-                    trigger: {
-                        date: triggerDate,
-                    } as Notifications.DateTriggerInput,
-                });
-            }
-            return null;
-        });
-
-        await Promise.all(schedulingPromises);
-    } catch (error) {
-        console.error("Error scheduling exam notifications:", error);
-    }
-}
-
-export async function cancelExamNotifications(examId: string) {
-    if (Platform.OS === 'web') return;
-
-    try {
-        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-        const cancelPromises = scheduled
-            .filter(notif => notif.content.data?.examId === examId)
-            .map(notif => Notifications.cancelScheduledNotificationAsync(notif.identifier));
-
-        if (cancelPromises.length > 0) {
-            await Promise.all(cancelPromises);
-        }
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `📝 ${exam.type}: ${exam.subject}`,
+          body:
+            r.offset === 0
+              ? `¡Es el momento! Tu ${exam.type} comienza ahora en ${exam.room}.`
+              : `Tu ${exam.type} es ${r.label} en la sala ${exam.room}.`,
+          sound: "default",
+          data: { examId: exam.id },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: secs,
+          channelId: Platform.OS === "android" ? "exams" : undefined,
+        },
+      });
     } catch (e) {
-        console.error("Error cancelling notifications:", e);
+      console.error(`Notification "${r.label}":`, e);
     }
+  }
+}
+
+// ─── Cancel exam notifications ──────────────────────────────────────
+export async function cancelExamNotifications(examId: string): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    for (const n of all) {
+      if (n.content.data?.examId === examId) {
+        await Notifications.cancelScheduledNotificationAsync(n.identifier);
+      }
+    }
+  } catch (e) {
+    console.error("cancelExamNotifications:", e);
+  }
+}
+
+// ─── Debug ──────────────────────────────────────────────────────────
+export async function getScheduledNotificationCount(): Promise<number> {
+  if (Platform.OS === "web") return 0;
+  try {
+    return (await Notifications.getAllScheduledNotificationsAsync()).length;
+  } catch {
+    return 0;
+  }
 }

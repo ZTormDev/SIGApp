@@ -15,7 +15,8 @@
     "android": {
       "package": "com.ztormdev.sigapp",
       "icon": "./assets/images/sigapp-icons/playstore.png",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -36,7 +37,14 @@
         }
       ],
       "expo-secure-store",
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/sigapp-icons/android/mipmap-xxxhdpi/sigapp.png",
+          "color": "#7C4DFF"
+        }
+      ],
+      "@react-native-firebase/app"
     ],
     "experiments": {
       "typedRoutes": true,
