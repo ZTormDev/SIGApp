@@ -15,8 +15,8 @@ import Animated, {
     Layout,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Calendar } from "../../components/exams/Calendar";
-import { ExamModal } from "../../components/exams/ExamModal";
+import { Calendar } from "../../components/calendar/Calendar";
+import { ExamModal } from "../../components/calendar/ExamModal";
 import {
     cancelExamNotifications,
     scheduleExamNotifications,
@@ -24,7 +24,7 @@ import {
 import { Exam, getExams, getSchedule, saveExams } from "../../utils/storage";
 import { useTheme } from "../../utils/ThemeContext";
 
-export default function ExamsScreen() {
+export default function CalendarScreen() {
   const { colors, theme } = useTheme();
   const [exams, setExams] = useState<Exam[]>([]);
   const [subjects, setSubjects] = useState<string[]>([]);
@@ -182,12 +182,12 @@ export default function ExamsScreen() {
       <View style={styles.header}>
         <View>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Certámenes
+            Calendario
           </Text>
           <Text
             style={[styles.headerSubtitle, { color: colors.textSecondary }]}
           >
-            Gestiona tus evaluaciones
+            Gestiona tus eventos académicos
           </Text>
         </View>
         <TouchableOpacity

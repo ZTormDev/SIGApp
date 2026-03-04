@@ -1,11 +1,11 @@
 {
-  "name": "sigapp",
+  "name": "miusm",
   "main": "expo-router/entry",
   "version": "1.0.3",
   "scripts": {
     "start": "expo start",
-    "build": "TMPDIR=/home/ztorm/tmp-eas-build npx eas build --profile production --platform android --local --output ./builds",
-    "build:dev": "TMPDIR=/home/ztorm/tmp-eas-build npx eas build --profile development --platform android --local --output ./builds",
+    "build": "TMPDIR=/home/ztorm/tmp-eas-build npx eas build --profile production --platform android --local --output ./builds/miusm-$(node -p \"require('./package.json').version\").apk",
+    "build:dev": "TMPDIR=/home/ztorm/tmp-eas-build npx eas build --profile development --platform android --local --output ./builds/miusm-dev-$(node -p \"require('./package.json').version\").apk",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -31,6 +31,7 @@
     "expo-image": "~3.0.11",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.11",
+    "expo-navigation-bar": "~5.0.10",
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",

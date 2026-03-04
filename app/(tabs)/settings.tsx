@@ -192,7 +192,7 @@ export default function SettingsScreen() {
           entering={FadeInDown.duration(400).delay(600).springify()}
           style={styles.footer}
         >
-          SIGApp · Hecho con ❤️ para la USM
+          MiUSM · Hecho con ❤️ para la USM
         </Animated.Text>
       </ScrollView>
     </SafeAreaView>

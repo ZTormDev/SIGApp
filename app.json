@@ -1,38 +1,38 @@
 {
   "expo": {
-    "name": "SIGApp",
-    "slug": "SIGApp",
+    "name": "MiUSM",
+    "slug": "MiUSM",
     "version": "1.0.3",
     "orientation": "portrait",
-    "icon": "./assets/images/sigapp-icons/appstore.png",
-    "scheme": "sigapp",
+    "icon": "./assets/images/AppIcons/app.png",
+    "scheme": "miusm",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ztormdev.sigapp",
-      "icon": "./assets/images/sigapp-icons/appstore.png"
+      "bundleIdentifier": "com.ztormdev.miusm",
+      "icon": "./assets/images/AppIcons/app.png"
     },
     "android": {
-      "package": "com.ztormdev.sigapp",
-      "icon": "./assets/images/sigapp-icons/playstore.png",
+      "package": "com.ztormdev.miusm",
+      "icon": "./assets/images/AppIcons/app.png",
       "predictiveBackGestureEnabled": false,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/sigapp-icons/playstore.png"
+      "favicon": "./assets/images/AppIcons/app.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/sigapp-icons/playstore.png",
-          "imageWidth": 200,
+          "image": "./assets/images/AppIcons/app-launch.png",
+          "imageWidth": 150,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#07172b",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#07172b"
           }
         }
       ],
@@ -40,7 +40,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/sigapp-icons/android/mipmap-xxxhdpi/sigapp.png",
+          "icon": "./assets/images/AppIcons/android/mipmap-xxxhdpi/MiUSM-ICON.png",
           "color": "#7C4DFF"
         }
       ],
@@ -53,7 +53,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "7b000d0a-b7c1-41c6-99be-878d91e796e9"
+        "projectId": "a82a6849-615b-4821-a664-ab88f5a77716"
       }
     }
   }
