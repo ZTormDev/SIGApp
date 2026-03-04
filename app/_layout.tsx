@@ -6,7 +6,6 @@ import {
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { Platform } from "react-native";
 import "react-native-gesture-handler";
 import "react-native-reanimated";
 
@@ -19,14 +18,6 @@ import {
   useTheme,
 } from "../utils/ThemeContext";
 
-// Safe import of expo-navigation-bar (not available in Expo Go)
-let NavigationBar: typeof import("expo-navigation-bar") | null = null;
-try {
-  NavigationBar = require("expo-navigation-bar");
-} catch {
-  // Native module not available (e.g. running in Expo Go)
-}
-
 export const unstable_settings = {
   initialRouteName: "index",
 };
@@ -34,21 +25,7 @@ export const unstable_settings = {
 function RootNavigator() {
   const { theme } = useTheme();
 
-  // Track de pantallas automático con Firebase Analytics
   useScreenTracking();
-
-  useEffect(() => {
-    if (Platform.OS === "android" && NavigationBar) {
-      try {
-        NavigationBar.setBackgroundColorAsync(
-          theme === "dark" ? "#0e0e0e" : "#ffffff",
-        );
-        NavigationBar.setButtonStyleAsync(theme === "dark" ? "light" : "dark");
-      } catch (e) {
-        // Silently ignore if NavigationBar APIs fail
-      }
-    }
-  }, [theme]);
 
   return (
     <ThemeProvider value={theme === "dark" ? DarkTheme : DefaultTheme}>

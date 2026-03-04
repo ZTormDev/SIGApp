@@ -7,6 +7,7 @@ interface CalendarProps {
     selectedDate: string;
     onDateSelect: (date: string) => void;
     examsDates: string[]; // ['2026-03-10', ...]
+    academicEventDates?: string[]; // ['2026-03-03', ...]
 }
 
 const MONTH_TITLES = [
@@ -15,7 +16,7 @@ const MONTH_TITLES = [
 ];
 const DAYS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-export function Calendar({ selectedDate, onDateSelect, examsDates }: CalendarProps) {
+export function Calendar({ selectedDate, onDateSelect, examsDates, academicEventDates = [] }: CalendarProps) {
     const { colors, theme } = useTheme();
     const [viewDate, setViewDate] = useState(new Date(selectedDate + 'T12:00:00'));
 
@@ -86,6 +87,7 @@ export function Calendar({ selectedDate, onDateSelect, examsDates }: CalendarPro
             const isSelected = selectedDate === dateStr;
             const isToday = todayStr === dateStr;
             const hasExam = examsDates.includes(dateStr);
+            const hasAcademicEvent = academicEventDates.includes(dateStr);
 
             return (
                 <TouchableOpacity
@@ -104,12 +106,20 @@ export function Calendar({ selectedDate, onDateSelect, examsDates }: CalendarPro
                     ]}>
                         {item.day}
                     </Text>
-                    {hasExam && (
-                        <View style={[
-                            styles.examIndicator,
-                            { backgroundColor: isSelected ? '#fff' : colors.primary }
-                        ]} />
-                    )}
+                    <View style={styles.indicatorRow}>
+                        {hasAcademicEvent && (
+                            <View style={[
+                                styles.academicIndicator,
+                                { backgroundColor: isSelected ? '#fff' : '#FF9100' }
+                            ]} />
+                        )}
+                        {hasExam && (
+                            <View style={[
+                                styles.examIndicator,
+                                { backgroundColor: isSelected ? '#fff' : colors.primary }
+                            ]} />
+                        )}
+                    </View>
                 </TouchableOpacity>
             );
         });
@@ -154,6 +164,18 @@ export function Calendar({ selectedDate, onDateSelect, examsDates }: CalendarPro
                     }
                     return rows;
                 })()}
+            </View>
+
+            {/* Legend */}
+            <View style={styles.legend}>
+                <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+                    <Text style={[styles.legendText, { color: colors.textSecondary }]}>Evaluaciones</Text>
+                </View>
+                <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#FF9100' }]} />
+                    <Text style={[styles.legendText, { color: colors.textSecondary }]}>Calendario USM</Text>
+                </View>
             </View>
         </View>
     );
@@ -226,11 +248,44 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
     },
-    examIndicator: {
+    indicatorRow: {
         position: 'absolute',
-        bottom: 4,
-        width: 3,
-        height: 3,
-        borderRadius: 1.5,
-    }
+        bottom: 3,
+        flexDirection: 'row',
+        gap: 3,
+        alignItems: 'center',
+    },
+    examIndicator: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+    },
+    academicIndicator: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+    },
+    legend: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 16,
+        marginTop: 12,
+        paddingTop: 10,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: 'rgba(128,128,128,0.15)',
+    },
+    legendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+    },
+    legendDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+    legendText: {
+        fontSize: 10,
+        fontWeight: '600',
+    },
 });

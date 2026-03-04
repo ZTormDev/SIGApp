@@ -1,25 +1,34 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, {
-    FadeInDown,
-    FadeInUp,
-    Layout,
+  FadeInDown,
+  Layout
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar } from "../../components/calendar/Calendar";
 import { ExamModal } from "../../components/calendar/ExamModal";
 import {
-    cancelExamNotifications,
-    scheduleExamNotifications,
+  AcademicEvent,
+  getAcademicEvents,
+  getCategoryColor,
+  getCategoryLabel,
+  getEventDates,
+  getEventsForDate,
+} from "../../utils/academicCalendar";
+import {
+  cancelExamNotifications,
+  scheduleExamNotifications,
 } from "../../utils/notifications";
 import { Exam, getExams, getSchedule, saveExams } from "../../utils/storage";
 import { useTheme } from "../../utils/ThemeContext";
@@ -28,6 +37,8 @@ export default function CalendarScreen() {
   const { colors, theme } = useTheme();
   const [exams, setExams] = useState<Exam[]>([]);
   const [subjects, setSubjects] = useState<string[]>([]);
+  const [academicEvents, setAcademicEvents] = useState<AcademicEvent[]>([]);
+  const [loadingAcademic, setLoadingAcademic] = useState(false);
   const getLocalDateString = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -42,6 +53,7 @@ export default function CalendarScreen() {
 
   useEffect(() => {
     loadData();
+    loadAcademicCalendar();
   }, []);
 
   async function loadData() {
@@ -75,15 +87,39 @@ export default function CalendarScreen() {
     }
   }
 
+  async function loadAcademicCalendar() {
+    setLoadingAcademic(true);
+    try {
+      const events = await getAcademicEvents();
+      setAcademicEvents(events);
+    } catch (error) {
+      console.error('Error loading academic calendar:', error);
+    } finally {
+      setLoadingAcademic(false);
+    }
+  }
+
   const examsDates = useMemo(() => {
     return Array.from(new Set(exams.map((e) => e.date)));
   }, [exams]);
+
+  const academicEventDates = useMemo(() => {
+    return getEventDates(academicEvents);
+  }, [academicEvents]);
 
   const activeExams = useMemo(() => {
     return exams
       .filter((e) => e.date === selectedDate)
       .sort((a, b) => a.time.localeCompare(b.time));
   }, [exams, selectedDate]);
+
+  const activeAcademicEvents = useMemo(() => {
+    return getEventsForDate(academicEvents, selectedDate);
+  }, [academicEvents, selectedDate]);
+
+  const handleOpenOfficialCalendar = useCallback(() => {
+    Linking.openURL('https://vra.usm.cl/calendario-academico/');
+  }, []);
 
   const handleSaveExam = async (exam: Exam) => {
     let newExams;
@@ -213,6 +249,7 @@ export default function CalendarScreen() {
             selectedDate={selectedDate}
             onDateSelect={setSelectedDate}
             examsDates={examsDates}
+            academicEventDates={academicEventDates}
           />
         </Animated.View>
 
@@ -231,46 +268,7 @@ export default function CalendarScreen() {
         </Animated.View>
 
         <View style={styles.examsList}>
-          {activeExams.length === 0 ? (
-            <Animated.View
-              entering={FadeInUp.delay(200)}
-              style={styles.emptyState}
-            >
-              <View
-                style={[
-                  styles.emptyIconContainer,
-                  {
-                    backgroundColor:
-                      theme === "dark"
-                        ? "rgba(255,255,255,0.05)"
-                        : "rgba(0,0,0,0.03)",
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="calendar-outline"
-                  size={48}
-                  color={colors.textSecondary + "44"}
-                />
-              </View>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                No hay evaluaciones para este día
-              </Text>
-              <TouchableOpacity
-                style={[styles.emptyAddBtn, { borderColor: colors.primary }]}
-                onPress={() => {
-                  setEditingExam(null);
-                  setModalVisible(true);
-                }}
-              >
-                <Text
-                  style={[styles.emptyAddBtnText, { color: colors.primary }]}
-                >
-                  Programar evaluación
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
-          ) : (
+          {activeExams.length > 0 && (
             activeExams.map((exam, index) => (
               <Animated.View
                 key={exam.id}
@@ -382,6 +380,154 @@ export default function CalendarScreen() {
             ))
           )}
         </View>
+
+        {/* ── Academic Events Section ── */}
+        {activeAcademicEvents.length > 0 && (
+          <>
+            <Animated.View layout={Layout.springify()} style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Calendario USM
+              </Text>
+              <View
+                style={[styles.badge, { backgroundColor: '#FF910015' }]}
+              >
+                <Text style={[styles.badgeText, { color: '#FF9100' }]}>
+                  {activeAcademicEvents.length}{" "}
+                  {activeAcademicEvents.length === 1 ? "evento" : "eventos"}
+                </Text>
+              </View>
+            </Animated.View>
+
+            <View style={styles.examsList}>
+              {activeAcademicEvents.map((event, index) => {
+                const catColor = getCategoryColor(event.category);
+                const catLabel = getCategoryLabel(event.category);
+                const startTime = event.start.includes('T') ? event.start.split('T')[1] : null;
+                const isMultiDay = event.start.split('T')[0] !== event.end.split('T')[0];
+
+                return (
+                  <Animated.View
+                    key={event.id}
+                    entering={FadeInDown.delay(index * 80).springify()}
+                    style={[
+                      styles.examCard,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.typeAccent,
+                        { backgroundColor: catColor },
+                      ]}
+                    />
+                    <View style={styles.examCardContent}>
+                      <View style={styles.examTopRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[styles.academicEventTitle, { color: colors.text }]}
+                            numberOfLines={3}
+                          >
+                            {event.title}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.examType,
+                              { color: catColor },
+                            ]}
+                          >
+                            {catLabel}
+                          </Text>
+                        </View>
+                        <View style={styles.academicIconContainer}>
+                          <Ionicons
+                            name={event.icon as any}
+                            size={20}
+                            color={catColor}
+                          />
+                        </View>
+                      </View>
+
+                      <View style={styles.examDetails}>
+                        {startTime && startTime !== '00:00' && (
+                          <View style={styles.detailItem}>
+                            <Ionicons
+                              name="time-outline"
+                              size={14}
+                              color={colors.textSecondary}
+                            />
+                            <Text
+                              style={[
+                                styles.detailText,
+                                { color: colors.textSecondary },
+                              ]}
+                            >
+                              {startTime} hrs
+                            </Text>
+                          </View>
+                        )}
+                        {isMultiDay && (
+                          <View style={styles.detailItem}>
+                            <Ionicons
+                              name="calendar-outline"
+                              size={14}
+                              color={colors.textSecondary}
+                            />
+                            <Text
+                              style={[
+                                styles.detailText,
+                                { color: colors.textSecondary },
+                              ]}
+                            >
+                              Varios días
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {/* ── Official Calendar Link ── */}
+        <TouchableOpacity
+          style={[
+            styles.officialCalendarBtn,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+          onPress={handleOpenOfficialCalendar}
+          activeOpacity={0.7}
+        >
+          <View style={styles.officialCalendarContent}>
+            <View style={styles.officialCalendarIconBg}>
+              <Ionicons name="document-text-outline" size={20} color="#FF9100" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.officialCalendarTitle, { color: colors.text }]}>
+                Calendario Oficial USM
+              </Text>
+              <Text style={[styles.officialCalendarSub, { color: colors.textSecondary }]}>
+                Ver calendario completo en vra.usm.cl
+              </Text>
+            </View>
+            <Ionicons name="open-outline" size={18} color={colors.textSecondary} />
+          </View>
+        </TouchableOpacity>
+
+        {loadingAcademic && academicEvents.length === 0 && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Cargando calendario académico...
+            </Text>
+          </View>
+        )}
+
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -551,5 +697,60 @@ const styles = StyleSheet.create({
   emptyAddBtnText: {
     fontSize: 15,
     fontWeight: "700",
+  },
+  academicEventTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    lineHeight: 20,
+  },
+  academicIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  officialCalendarBtn: {
+    marginHorizontal: 20,
+    marginTop: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  officialCalendarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  officialCalendarIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FF910012',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  officialCalendarTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  officialCalendarSub: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });
