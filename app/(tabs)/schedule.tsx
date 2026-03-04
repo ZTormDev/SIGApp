@@ -1,26 +1,30 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useState } from "react";
+import * as MediaLibrary from "expo-media-library";
+import * as Sharing from "expo-sharing";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Dimensions,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ViewShot from "react-native-view-shot";
 import { TodayClassWidget } from "../../components/home/TodayClassWidget";
 import { ScheduleModal } from "../../components/schedule/ScheduleModal";
 import {
-    DAYS,
-    DEMO_DATA,
-    SelectedBlock,
-    SUBJECT_COLORS,
-    TIME_BLOCKS,
-    TOPE_COLOR,
+  DAYS,
+  DEMO_DATA,
+  SelectedBlock,
+  SUBJECT_COLORS,
+  TIME_BLOCKS,
+  TOPE_COLOR,
 } from "../../utils/scheduleConstants";
 import { getSchedule } from "../../utils/storage";
 import { useTheme } from "../../utils/ThemeContext";
@@ -34,6 +38,8 @@ export default function ScheduleScreen() {
     null,
   );
   const { colors, theme } = useTheme();
+  const scheduleRef = useRef<ViewShot>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -190,6 +196,86 @@ export default function ScheduleScreen() {
     setSelectedBlock({ cell, rowIndex, colIndex, color, span });
   };
 
+  const captureSchedule = useCallback(async (): Promise<string | null> => {
+    if (!scheduleRef.current || !scheduleRef.current.capture) return null;
+    setIsCapturing(true);
+    try {
+      const uri = await scheduleRef.current.capture();
+      return uri;
+    } catch (error) {
+      console.error('Error capturing schedule:', error);
+      return null;
+    } finally {
+      setIsCapturing(false);
+    }
+  }, []);
+
+  const handleShareImage = useCallback(async () => {
+    const uri = await captureSchedule();
+    if (!uri) {
+      Alert.alert('Error', 'No se pudo capturar el horario.');
+      return;
+    }
+    try {
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Compartir Mi Horario',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  }, [captureSchedule]);
+
+  const handleSaveImage = useCallback(async () => {
+    Alert.alert(
+      '📋 Descargar Horario',
+      'Recuerda que tu horario siempre estará actualizado dentro de la app. Te recomendamos revisarlo aquí para tener la información más reciente.\n\n¿Deseas guardar una imagen de tu horario?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Descargar',
+          onPress: async () => {
+            const uri = await captureSchedule();
+            if (!uri) {
+              Alert.alert('Error', 'No se pudo capturar el horario.');
+              return;
+            }
+            try {
+              const asset = await MediaLibrary.createAssetAsync(uri);
+              if (asset) {
+                Alert.alert('✅ Guardado', 'Horario guardado en la galería.');
+              }
+            } catch (error) {
+              console.error('Error saving:', error);
+              try {
+                const { status } = await MediaLibrary.requestPermissionsAsync();
+                if (status === 'granted') {
+                  await MediaLibrary.createAssetAsync(uri);
+                  Alert.alert('✅ Guardado', 'Horario guardado en la galería.');
+                } else {
+                  Alert.alert('Permisos', 'No se otorgaron los permisos necesarios.');
+                }
+              } catch (e) {
+                Alert.alert('Error', 'No se pudo guardar la imagen.');
+              }
+            }
+          },
+        },
+      ],
+    );
+  }, [captureSchedule]);
+
+  const hasSaturdayClasses = useMemo(() => {
+    if (!scheduleData) return false;
+    return scheduleData.some((row) => row[5] && row[5].isFilled);
+  }, [scheduleData]);
+
+  const displayedDays = useMemo(() => {
+    return hasSaturdayClasses ? DAYS : DAYS.slice(0, 5);
+  }, [hasSaturdayClasses]);
+
+  const dayColumnWidth = (screenWidth - 16 - 44 - 24) / displayedDays.length;
+
   if (isLoading) {
     return (
       <SafeAreaView
@@ -220,18 +306,6 @@ export default function ScheduleScreen() {
     );
   }
 
-  const hasSaturdayClasses = useMemo(() => {
-    if (!scheduleData) return false;
-    // Index 5 is Saturday
-    return scheduleData.some((row) => row[5] && row[5].isFilled);
-  }, [scheduleData]);
-
-  const displayedDays = useMemo(() => {
-    return hasSaturdayClasses ? DAYS : DAYS.slice(0, 5);
-  }, [hasSaturdayClasses]);
-
-  const dayColumnWidth = (screenWidth - 16 - 44 - 24) / displayedDays.length;
-
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -246,256 +320,279 @@ export default function ScheduleScreen() {
         entering={FadeInDown.duration(400).delay(100).springify()}
         style={styles.header}
       >
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Mi Horario
-        </Text>
-        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-          Semestre 2026-1
-        </Text>
+        <View>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Mi Horario
+          </Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Semestre 2026-1
+          </Text>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.headerBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={handleSaveImage}
+            disabled={isCapturing}
+          >
+            <Ionicons name="save-outline" size={18} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.headerBtn, { backgroundColor: colors.primary }]}
+            onPress={handleShareImage}
+            disabled={isCapturing}
+          >
+            <Ionicons name="share-social-outline" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
-
-      <View style={styles.dayHeaderRow}>
-        <View style={styles.timeHeaderCell} />
-        {displayedDays.map((day, i) => {
-          const today = new Date().getDay();
-          const isToday = today === i + 1;
-          return (
-            <View
-              key={day}
-              style={[
-                styles.dayHeaderCell,
-                { width: dayColumnWidth },
-                isToday && { backgroundColor: colors.primary },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.dayHeaderText,
-                  { color: theme === "dark" ? colors.textSecondary : "#666" },
-                  isToday && { color: "#fff" },
-                ]}
-              >
-                {day}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {scheduleData.slice(0, lastFilledRow + 1).map((row, rowIndex) => (
-          <Animated.View
-            key={rowIndex}
-            style={[
-              styles.gridRow,
-              { zIndex: scheduleData.length - rowIndex, overflow: "visible" },
-            ]}
-            entering={FadeInDown.duration(400).delay(200 + rowIndex * 50)}
-          >
-            <View style={styles.timeCell}>
-              <Text style={[styles.timeBlockLabel, { color: colors.primary }]}>
-                {TIME_BLOCKS[rowIndex]?.label}
-              </Text>
-              <Text style={[styles.timeText, { color: colors.textSecondary }]}>
-                {TIME_BLOCKS[rowIndex]?.start}
-                {"\n"}
-                {TIME_BLOCKS[rowIndex]?.end}
-              </Text>
-            </View>
+        <ViewShot
+          ref={scheduleRef}
+          options={{ format: 'png', quality: 1 }}
+          style={{ backgroundColor: colors.background, paddingBottom: 8 }}
+        >
+          <View style={styles.dayHeaderRow}>
+            <View style={styles.timeHeaderCell} />
+            {displayedDays.map((day, i) => {
+              const today = new Date().getDay();
+              const isToday = today === i + 1;
+              return (
+                <View
+                  key={day}
+                  style={[
+                    styles.dayHeaderCell,
+                    { width: dayColumnWidth },
+                    isToday && { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dayHeaderText,
+                      { color: theme === "dark" ? colors.textSecondary : "#666" },
+                      isToday && { color: "#fff" },
+                    ]}
+                  >
+                    {day}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+          {scheduleData.slice(0, lastFilledRow + 1).map((row, rowIndex) => (
+            <Animated.View
+              key={rowIndex}
+              style={[
+                styles.gridRow,
+                { zIndex: scheduleData.length - rowIndex, overflow: "visible" },
+              ]}
+              entering={FadeInDown.duration(400).delay(200 + rowIndex * 50)}
+            >
+              <View style={styles.timeCell}>
+                <Text style={[styles.timeBlockLabel, { color: colors.primary }]}>
+                  {TIME_BLOCKS[rowIndex]?.label}
+                </Text>
+                <Text style={[styles.timeText, { color: colors.textSecondary }]}>
+                  {TIME_BLOCKS[rowIndex]?.start}
+                  {"\n"}
+                  {TIME_BLOCKS[rowIndex]?.end}
+                </Text>
+              </View>
 
-            {row
-              .slice(0, displayedDays.length)
-              .map((cell: any, colIndex: number) => {
-                const mergeKey = `${rowIndex}-${colIndex}`;
-                const merge = mergeMap[mergeKey] || { span: 1, hidden: false };
+              {row
+                .slice(0, displayedDays.length)
+                .map((cell: any, colIndex: number) => {
+                  const mergeKey = `${rowIndex}-${colIndex}`;
+                  const merge = mergeMap[mergeKey] || { span: 1, hidden: false };
 
-                if (merge.hidden) {
-                  return (
-                    <View
-                      key={colIndex}
-                      style={{ width: dayColumnWidth, margin: 2 }}
-                    />
-                  );
-                }
+                  if (merge.hidden) {
+                    return (
+                      <View
+                        key={colIndex}
+                        style={{ width: dayColumnWidth, margin: 2 }}
+                      />
+                    );
+                  }
 
-                const color = getColorForCell(cell);
-                const isFilled = cell && cell.isFilled;
-                const span = merge.span;
+                  const color = getColorForCell(cell);
+                  const isFilled = cell && cell.isFilled;
+                  const span = merge.span;
 
-                if (span > 1) {
-                  const mergedHeight = 56 * span + 4 * span + (span - 1) * 2;
-                  return (
-                    <View
-                      key={colIndex}
-                      style={{
-                        width: dayColumnWidth,
-                        minHeight: 56,
-                        margin: 2,
-                        overflow: "visible",
-                      }}
-                    >
-                      <TouchableOpacity
-                        activeOpacity={0.6}
-                        onPress={() =>
-                          handleCellPress(cell, rowIndex, colIndex, span)
-                        }
-                        style={[
-                          styles.gridCell,
-                          {
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            width: undefined,
-                            height: mergedHeight,
-                            minHeight: mergedHeight,
-                            zIndex: 10,
-                            margin: 0,
-                          },
-                          isFilled &&
+                  if (span > 1) {
+                    const mergedHeight = 56 * span + 4 * span + (span - 1) * 2;
+                    return (
+                      <View
+                        key={colIndex}
+                        style={{
+                          width: dayColumnWidth,
+                          minHeight: 56,
+                          margin: 2,
+                          overflow: "visible",
+                        }}
+                      >
+                        <TouchableOpacity
+                          activeOpacity={0.6}
+                          onPress={() =>
+                            handleCellPress(cell, rowIndex, colIndex, span)
+                          }
+                          style={[
+                            styles.gridCell,
+                            {
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              width: undefined,
+                              height: mergedHeight,
+                              minHeight: mergedHeight,
+                              zIndex: 10,
+                              margin: 0,
+                            },
+                            isFilled &&
                             color && {
                               backgroundColor: color.bg,
                               borderLeftWidth: 3,
                               borderLeftColor: color.border,
                             },
-                        ]}
-                      >
-                        {isFilled && color && (
-                          <>
-                            <Text
-                              style={[
-                                styles.cellSubjectCode,
-                                {
-                                  color: color.text,
-                                  fontSize: 9,
-                                  opacity: 0.8,
-                                  marginBottom: 1,
-                                  fontWeight: "600",
-                                },
-                              ]}
-                              numberOfLines={1}
-                            >
-                              {cell.title?.split(" - ")[0]}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.cellSubjectCode,
-                                { color: color.text },
-                              ]}
-                              numberOfLines={1}
-                            >
-                              {(() => {
-                                const t = cell.title || "";
-                                const parts = t.split(" - ");
-                                if (parts.length >= 2) {
-                                  return parts
-                                    .slice(1)
-                                    .join(" - ")
-                                    .replace(/\s*\(.*\)\s*$/, "")
-                                    .toUpperCase();
-                                }
-                                return t.split(" ")[0];
-                              })()}
-                            </Text>
-                            {cell.room ? (
-                              <Text style={styles.cellRoom} numberOfLines={1}>
-                                {cell.room}
+                          ]}
+                        >
+                          {isFilled && color && (
+                            <>
+                              <Text
+                                style={[
+                                  styles.cellSubjectCode,
+                                  {
+                                    color: color.text,
+                                    fontSize: 9,
+                                    opacity: 0.8,
+                                    marginBottom: 1,
+                                    fontWeight: "600",
+                                  },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {cell.title?.split(" - ")[0]}
                               </Text>
-                            ) : null}
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  );
-                }
+                              <Text
+                                style={[
+                                  styles.cellSubjectCode,
+                                  { color: color.text },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {(() => {
+                                  const t = cell.title || "";
+                                  const parts = t.split(" - ");
+                                  if (parts.length >= 2) {
+                                    return parts
+                                      .slice(1)
+                                      .join(" - ")
+                                      .replace(/\s*\(.*\)\s*$/, "")
+                                      .toUpperCase();
+                                  }
+                                  return t.split(" ")[0];
+                                })()}
+                              </Text>
+                              {cell.room ? (
+                                <Text style={styles.cellRoom} numberOfLines={1}>
+                                  {cell.room}
+                                </Text>
+                              ) : null}
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  }
 
-                return (
-                  <TouchableOpacity
-                    key={colIndex}
-                    activeOpacity={isFilled ? 0.6 : 1}
-                    onPress={() => handleCellPress(cell, rowIndex, colIndex, 1)}
-                    style={[
-                      styles.gridCell,
-                      {
-                        width: dayColumnWidth,
-                        backgroundColor: colors.surface,
-                      },
-                      isFilled &&
+                  return (
+                    <TouchableOpacity
+                      key={colIndex}
+                      activeOpacity={isFilled ? 0.6 : 1}
+                      onPress={() => handleCellPress(cell, rowIndex, colIndex, 1)}
+                      style={[
+                        styles.gridCell,
+                        {
+                          width: dayColumnWidth,
+                          backgroundColor: colors.surface,
+                        },
+                        isFilled &&
                         color && {
                           backgroundColor: color.bg,
                           borderLeftWidth: 3,
                           borderLeftColor: color.border,
                         },
-                    ]}
-                  >
-                    {isFilled && color && (
-                      <>
-                        <Text
-                          style={[
-                            styles.cellSubjectCode,
-                            {
-                              color: color.text,
-                              fontSize: 8,
-                              opacity: 0.8,
-                              marginBottom: 0,
-                              fontWeight: "600",
-                            },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {cell.type === "Tope"
-                            ? "[TOPE]"
-                            : cell.title?.split(" - ")[0]}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.cellSubjectCode,
-                            { color: color.text },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {(() => {
-                            if (
-                              cell.type === "Tope" ||
-                              cell.subject === "TOPE"
-                            ) {
-                              return "HORARIO";
-                            }
-                            const t = cell.title || "";
-                            const parts = t.split(" - ");
-                            if (parts.length >= 2) {
-                              return parts
-                                .slice(1)
-                                .join(" - ")
-                                .replace(/\s*\(.*\)\s*$/, "")
-                                .toUpperCase();
-                            }
-                            return t.split(" ")[0];
-                          })()}
-                        </Text>
-                        {cell.type === "Tope" && cell.topeSubjects ? (
+                      ]}
+                    >
+                      {isFilled && color && (
+                        <>
                           <Text
-                            style={[styles.cellRoom, { color: color.text }]}
-                            numberOfLines={2}
+                            style={[
+                              styles.cellSubjectCode,
+                              {
+                                color: color.text,
+                                fontSize: 8,
+                                opacity: 0.8,
+                                marginBottom: 0,
+                                fontWeight: "600",
+                              },
+                            ]}
+                            numberOfLines={1}
                           >
-                            {cell.topeSubjects.join("\n")}
+                            {cell.type === "Tope"
+                              ? "[TOPE]"
+                              : cell.title?.split(" - ")[0]}
                           </Text>
-                        ) : cell.room ? (
-                          <Text style={styles.cellRoom} numberOfLines={1}>
-                            {cell.room}
+                          <Text
+                            style={[
+                              styles.cellSubjectCode,
+                              { color: color.text },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {(() => {
+                              if (
+                                cell.type === "Tope" ||
+                                cell.subject === "TOPE"
+                              ) {
+                                return "HORARIO";
+                              }
+                              const t = cell.title || "";
+                              const parts = t.split(" - ");
+                              if (parts.length >= 2) {
+                                return parts
+                                  .slice(1)
+                                  .join(" - ")
+                                  .replace(/\s*\(.*\)\s*$/, "")
+                                  .toUpperCase();
+                              }
+                              return t.split(" ")[0];
+                            })()}
                           </Text>
-                        ) : null}
-                      </>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-          </Animated.View>
-        ))}
+                          {cell.type === "Tope" && cell.topeSubjects ? (
+                            <Text
+                              style={[styles.cellRoom, { color: color.text }]}
+                              numberOfLines={2}
+                            >
+                              {cell.topeSubjects.join("\n")}
+                            </Text>
+                          ) : cell.room ? (
+                            <Text style={styles.cellRoom} numberOfLines={1}>
+                              {cell.room}
+                            </Text>
+                          ) : null}
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+            </Animated.View>
+          ))}
+        </ViewShot>
 
         <Animated.View
           entering={FadeInUp.duration(500).delay(400).springify()}
@@ -512,7 +609,7 @@ export default function ScheduleScreen() {
         selectedBlock={selectedBlock}
         onClose={() => setSelectedBlock(null)}
       />
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 
@@ -541,6 +638,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8f9ff",
   },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingBottom: 32,
     paddingTop: 16,
@@ -556,6 +656,19 @@ const styles = StyleSheet.create({
     color: "#888",
     marginTop: 2,
   },
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  headerBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
   dayHeaderRow: {
     flexDirection: "row",
     paddingHorizontal: 8,
@@ -570,17 +683,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  dayHeaderToday: {
-    backgroundColor: "#7C4DFF",
-  },
   dayHeaderText: {
     fontSize: 13,
     fontWeight: "700",
     color: "#666",
     textTransform: "uppercase",
-  },
-  dayHeaderTextToday: {
-    color: "#fff",
   },
   scrollView: {
     flex: 1,
@@ -632,191 +739,10 @@ const styles = StyleSheet.create({
     color: "#999",
     marginTop: 2,
   },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  modalSheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 40,
-    maxHeight: "70%",
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#ddd",
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 16,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 8,
-  },
-  modalAccent: {
-    width: 4,
-    height: "100%",
-    borderRadius: 2,
-    marginRight: 14,
-    minHeight: 40,
-  },
-  modalHeaderContent: {
-    flex: 1,
-  },
-  modalSubjectCode: {
-    fontSize: 24,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-  },
-  modalSubjectTitle: {
-    fontSize: 13,
-    color: "#666",
-    marginTop: 4,
-  },
-  modalCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0,0,0,0.06)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalBody: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  detailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f5",
-  },
-  detailIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#f0ecff",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  detailContent: {
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 11,
-    color: "#999",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  detailValue: {
-    fontSize: 16,
-    color: "#333",
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  topeWarning: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFEBEE",
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 12,
-  },
-  topeWarningText: {
-    fontSize: 14,
-    color: "#B71C1C",
-    fontWeight: "600",
-    marginLeft: 10,
-    flex: 1,
-  },
   todayCardContainer: {
     flex: 1,
     paddingHorizontal: 1,
     paddingVertical: 10,
     justifyContent: "center",
-  },
-  todayCard: {
-    borderRadius: 16,
-    padding: 20,
-    minHeight: 220,
-  },
-  todayCardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  todayCardTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    marginLeft: 8,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  noClassContent: {
-    flex: 1,
-    justifyContent: "center",
-    paddingVertical: 10,
-  },
-  noClassText: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  classWidgetContent: {
-    flex: 1,
-    justifyContent: "center",
-    paddingVertical: 4,
-  },
-  classMainInfo: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  className: {
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  classCode: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  classDetailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-  },
-  classDetailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 12,
-    marginBottom: 4,
-  },
-  classDetailText: {
-    fontSize: 13,
-    fontWeight: "500",
-    marginLeft: 4,
-  },
-  blockBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  blockBadgeText: {
-    fontSize: 11,
-    fontWeight: "700",
   },
 });
