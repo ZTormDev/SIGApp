@@ -7,7 +7,7 @@ export interface AcademicEvent {
     end: string;         // ISO datetime "2026-03-03T23:59"
     backgroundColor: string;
     borderColor: string;
-    category: 'inicio_clases' | 'fin_clases' | 'vacaciones' | 'suspension' | 'academico';
+    category: 'inicio_clases' | 'fin_clases' | 'vacaciones' | 'suspension' | 'academico' | 'ceremonia' | 'feriado';
     icon: string;
 }
 
@@ -52,30 +52,74 @@ function isImportantEvent(title: string): boolean {
 function categorizeEvent(title: string): { category: AcademicEvent['category']; icon: string } {
     const lower = title.toLowerCase();
 
+    // 1. Vacations & Holidays (Highest priority for students)
+    if (lower.includes('vacaciones') || lower.includes('receso')) {
+        return { category: 'vacaciones', icon: 'sunny-outline' };
+    }
+    if (lower.includes('feriado')) {
+        return { category: 'feriado', icon: 'flag-outline' };
+    }
+
+    // 2. Class starts/ends
     if (lower.includes('inicio de clases')) {
         return { category: 'inicio_clases', icon: 'school-outline' };
     }
     if (lower.includes('término de clases') || lower.includes('termino de clases')) {
-        return { category: 'fin_clases', icon: 'flag-outline' };
+        return { category: 'fin_clases', icon: 'checkmark-circle-outline' };
     }
-    if (lower.includes('vacaciones') || lower.includes('receso')) {
-        return { category: 'vacaciones', icon: 'sunny-outline' };
-    }
-    if (lower.includes('inscripción de asignaturas') || lower.includes('modificaciones inscripción')) {
+
+    // 3. Academic Milestones (Enrollment, Pinvu, etc.)
+    if (
+        lower.includes('inscripción de asignaturas') ||
+        lower.includes('modificaciones inscripción') ||
+        lower.includes('colchón académico') ||
+        lower.includes('colchon academico') ||
+        lower.includes('pinvu') ||
+        lower.includes('puertas abiertas')
+    ) {
         return { category: 'academico', icon: 'document-text-outline' };
     }
-    return { category: 'suspension', icon: 'pause-circle-outline' };
+
+    // 4. Ceremonies & Special Events
+    if (
+        lower.includes('bienvenida') ||
+        lower.includes('ceremonia') ||
+        lower.includes('titulación') ||
+        lower.includes('titulacion') ||
+        lower.includes('aniversario')
+    ) {
+        return { category: 'ceremonia', icon: 'ribbon-outline' };
+    }
+
+    // 5. Suspensions
+    if (
+        lower.includes('suspensión') ||
+        lower.includes('suspension') ||
+        lower.includes('día del funcionario') ||
+        lower.includes('dia del funcionario') ||
+        lower.includes('días sansanos') ||
+        lower.includes('dias sansanos') ||
+        lower.includes('días mechones') ||
+        lower.includes('dias mechones')
+    ) {
+        return { category: 'suspension', icon: 'pause-circle-outline' };
+    }
+
+    // Default to academic for any other important milestone
+    return { category: 'academico', icon: 'calendar-outline' };
 }
 
 // ── Color for each category ─────────────────────────────────────────
 export function getCategoryColor(category: AcademicEvent['category']): string {
     switch (category) {
-        case 'inicio_clases': return '#00C853';
-        case 'fin_clases': return '#FF5252';
-        case 'vacaciones': return '#FF9100';
-        case 'suspension': return '#424242';
-        case 'academico': return '#2979FF';
-        default: return '#7C4DFF';
+        case 'inicio_clases': return '#00C853'; // Green
+        case 'fin_clases': return '#FF5252';    // Red
+        case 'vacaciones': return '#FF9100';   // Orange
+        case 'feriado': return '#F44336';      // Reddish/Hot
+        case 'suspension': return '#607D8B';   // Blue Grey
+        case 'academico': return '#2979FF';    // Blue
+        case 'ceremonia': return '#7C4DFF';    // Purple
+        default: return '#9E9E9E';             // Grey
     }
 }
 
@@ -85,8 +129,10 @@ export function getCategoryLabel(category: AcademicEvent['category']): string {
         case 'inicio_clases': return 'Inicio de Clases';
         case 'fin_clases': return 'Fin de Clases';
         case 'vacaciones': return 'Vacaciones / Receso';
+        case 'feriado': return 'Feriado';
         case 'suspension': return 'Suspensión';
         case 'academico': return 'Académico';
+        case 'ceremonia': return 'Ceremonia / Evento';
         default: return 'Otro';
     }
 }

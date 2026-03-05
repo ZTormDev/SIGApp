@@ -13,6 +13,7 @@ const SCHEDULE_KEY = 'USER_SCHEDULE';
 const PROFILE_KEY = 'USER_PROFILE';
 const EXAMS_KEY = 'USER_EXAMS';
 const DISCLAIMER_KEY = 'HAS_ACCEPTED_DISCLAIMER';
+const CURRICULUM_KEY = 'USER_CURRICULUM';
 
 const secureSetItem = async (key: string, value: string) => {
     if (Platform.OS === 'web' || !SecureStore) {
@@ -176,4 +177,27 @@ export async function setAcceptedDisclaimer() {
     } catch (error) {
         console.error('Error saving disclaimer state:', error);
     }
+}
+
+export async function saveCurriculum(data: any) {
+    try {
+        const jsonValue = JSON.stringify(data);
+        await AsyncStorage.setItem(CURRICULUM_KEY, jsonValue);
+    } catch (error) {
+        console.error('Error saving curriculum:', error);
+    }
+}
+
+export async function getCurriculum(): Promise<any | null> {
+    try {
+        const jsonValue = await AsyncStorage.getItem(CURRICULUM_KEY);
+        return jsonValue != null ? JSON.parse(jsonValue) : null;
+    } catch (error) {
+        console.error('Error reading curriculum:', error);
+        return null;
+    }
+}
+
+export async function clearCurriculum() {
+    await AsyncStorage.removeItem(CURRICULUM_KEY);
 }

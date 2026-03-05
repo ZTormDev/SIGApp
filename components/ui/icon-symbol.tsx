@@ -21,6 +21,8 @@ const MAPPING = {
   "paperplane.fill": "send",
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
+  "book.fill": "menu-book",
+  book: "menu-book",
 } as IconMapping;
 
 export function IconSymbol({

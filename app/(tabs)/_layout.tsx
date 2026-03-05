@@ -52,6 +52,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="curriculum"
+        options={{
+          title: "Malla",
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              size={28}
+              name={focused ? "book.fill" : "book"}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "Ajustes",
