@@ -26,10 +26,23 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SigaWebView from "../components/SigaWebView";
+import {
+  ANALYTICS_EVENTS,
+  ANALYTICS_PARAMS,
+  USER_PROPERTIES,
+} from "../constants/analytics";
 import { parseCurriculumHtml } from "../utils/curriculumParser";
+import { logEvent, setUserProperties } from "../utils/firebase";
 import { parseHtmlSchedule } from "../utils/sigaApi";
 import { parseProfileHtml } from "../utils/sigaParser";
-import { saveCredentials, saveCurriculum, saveCurriculumSyncTime, saveProfile, saveSchedule, saveSyncTime } from "../utils/storage";
+import {
+  saveCredentials,
+  saveCurriculum,
+  saveCurriculumSyncTime,
+  saveProfile,
+  saveSchedule,
+  saveSyncTime,
+} from "../utils/storage";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -46,6 +59,7 @@ export default function LoginScreen() {
 
   const [isWebViewActive, setIsWebViewActive] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
+  const [loginStartTime, setLoginStartTime] = useState<number>(0);
 
   const handleLoginPress = () => {
     if (!password) {
@@ -55,7 +69,11 @@ export default function LoginScreen() {
     setErrorMsg("");
     setProgressText("Conectando con SIGA...");
     setIsLoading(true);
+    setLoginStartTime(Date.now());
     setIsWebViewActive(true);
+    logEvent(ANALYTICS_EVENTS.LOGIN_START, {
+      [ANALYTICS_PARAMS.SERVER]: server,
+    });
   };
 
   const handleWebViewSuccess = async (data: {
@@ -78,6 +96,18 @@ export default function LoginScreen() {
       await saveSyncTime();
       await saveCurriculumSyncTime();
 
+      const loginDuration = Date.now() - loginStartTime;
+      logEvent(ANALYTICS_EVENTS.LOGIN_SUCCESS, {
+        [ANALYTICS_PARAMS.SERVER]: server,
+        [ANALYTICS_PARAMS.DURATION_MS]: loginDuration,
+      });
+      setUserProperties({
+        [USER_PROPERTIES.CAMPUS]: profileData.campus || null,
+        [USER_PROPERTIES.CAREER]: profileData.career || null,
+        [USER_PROPERTIES.SERVER]: server,
+      });
+      incrementLoginCount();
+
       setProgressText("¡Listo!");
       setIsWebViewActive(false);
       setIsLoading(false);
@@ -92,6 +122,10 @@ export default function LoginScreen() {
     setIsWebViewActive(false);
     setIsLoading(false);
     setErrorMsg(msg);
+    logEvent(ANALYTICS_EVENTS.LOGIN_FAILURE, {
+      [ANALYTICS_PARAMS.ERROR_MESSAGE]: msg.substring(0, 100),
+      [ANALYTICS_PARAMS.SERVER]: server,
+    });
   };
 
   const toggleServer = () => {
@@ -209,7 +243,11 @@ export default function LoginScreen() {
                   <Text style={styles.userBadgeText}>
                     {rut}@{server}
                   </Text>
-                  <Ionicons name="chevron-down" size={16} color="rgba(255, 255, 255, 0.7)" />
+                  <Ionicons
+                    name="chevron-down"
+                    size={16}
+                    color="rgba(255, 255, 255, 0.7)"
+                  />
                 </TouchableOpacity>
 
                 <View style={styles.inputGroup}>
@@ -277,9 +315,17 @@ export default function LoginScreen() {
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                      }}
+                    >
                       <ActivityIndicator color="#fff" size="small" />
-                      <Text style={styles.primaryButtonText}>{progressText}</Text>
+                      <Text style={styles.primaryButtonText}>
+                        {progressText}
+                      </Text>
                     </View>
                   ) : (
                     <Text style={styles.primaryButtonText}>Iniciar Sesión</Text>

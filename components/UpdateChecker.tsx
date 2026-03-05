@@ -11,22 +11,18 @@ export function UpdateChecker() {
   useEffect(() => {
     const checkForUpdates = async () => {
       try {
-        // Fetch the latest release from GitHub API
         const response = await fetch(GITHUB_API_URL);
         if (!response.ok) return;
 
         const data = await response.json();
-        const latestVersionTag = data.tag_name; // e.g. "v1.0.1" or "1.0.1"
+        const latestVersionTag = data.tag_name; //"v1.0.1" or "1.0.1"
 
         if (!latestVersionTag) return;
 
-        // Clean the tag (remove 'v' prefix if exists)
         const latestVersion = latestVersionTag.replace(/^v/, "");
 
-        // Get the current version from app.json via expo-constants
         const currentVersion = Constants.expoConfig?.version || "1.0.0";
 
-        // Find the first .apk asset in the release if available
         const apkAsset = data.assets?.find((asset: any) =>
           asset.name.endsWith(".apk"),
         );
@@ -34,7 +30,6 @@ export function UpdateChecker() {
           ? apkAsset.browser_download_url
           : data.html_url;
 
-        // Compare versions semantically (simple approach for major.minor.patch)
         if (isNewerVersion(currentVersion, latestVersion)) {
           Alert.alert(
             "Actualización Disponible",
@@ -56,11 +51,10 @@ export function UpdateChecker() {
     checkForUpdates();
   }, []);
 
-  // Return null since this is a headless component
   return null;
 }
 
-// Simple semantic versioning comparator (returns true if v2 > v1)
+// (returns true if v2 > v1)
 function isNewerVersion(v1: string, v2: string): boolean {
   const v1Parts = v1.split(".").map(Number);
   const v2Parts = v2.split(".").map(Number);

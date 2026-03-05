@@ -19,7 +19,6 @@ export function useScreenTracking(): void {
 
   useEffect(() => {
     if (pathname && pathname !== previousScreen.current) {
-      // Convertir ruta a nombre legible: "/(tabs)/home" → "home", "/login" → "login"
       const screenName =
         pathname
           .replace(/^\/(tabs)?\/?\(?tabs\)?\/*/i, "")

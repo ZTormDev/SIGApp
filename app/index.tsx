@@ -2,20 +2,16 @@ import SigaWebView from "@/components/SigaWebView";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import {
-  Dimensions,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Dimensions, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
   FadeIn,
   FadeInDown,
   useAnimatedStyle,
   useSharedValue,
-  withTiming
+  withTiming,
 } from "react-native-reanimated";
+import { LOADING_TIPS } from "../constants/Tips";
 import { parseCurriculumHtml } from "../utils/curriculumParser";
 import { parseHtmlSchedule } from "../utils/sigaApi";
 import { parseProfileHtml } from "../utils/sigaParser";
@@ -36,11 +32,8 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-import { LOADING_TIPS } from "../constants/Tips";
-
 export default function IndexScreen() {
   const router = useRouter();
-
   const [authData, setAuthData] = useState<{
     rut: string | null;
     pass: string | null;
@@ -51,13 +44,13 @@ export default function IndexScreen() {
   const [statusText, setStatusText] = useState("Iniciando...");
   const [currentTip, setCurrentTip] = useState("");
 
-  // Animated progress bar
   const progressWidth = useSharedValue(0);
 
-  // Setup progress initially empty
   useEffect(() => {
     progressWidth.value = 0;
-    setCurrentTip(LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)]);
+    setCurrentTip(
+      LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)],
+    );
   }, []);
 
   const progressStyle = useAnimatedStyle(() => ({
@@ -80,7 +73,11 @@ export default function IndexScreen() {
       const lastSync = await getLastSyncTime();
       const lastCurriculumSync = await getLastCurriculumSyncTime();
       const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-      const needsCacheUpdate = !lastSync || !lastCurriculumSync || (Date.now() - lastSync > ONE_DAY_MS) || (Date.now() - lastCurriculumSync > ONE_DAY_MS);
+      const needsCacheUpdate =
+        !lastSync ||
+        !lastCurriculumSync ||
+        Date.now() - lastSync > ONE_DAY_MS ||
+        Date.now() - lastCurriculumSync > ONE_DAY_MS;
       const isMissingData = !schedule || !profile || !(await getCurriculum());
 
       if (rut && pass && (needsCacheUpdate || isMissingData)) {
@@ -89,17 +86,25 @@ export default function IndexScreen() {
         setSyncFallbackPath(schedule || profile ? "/(tabs)/home" : "/login");
         setNeedsSync(true);
       } else if (schedule || profile) {
-        // Fake loading flow for cached data so tips can be read
         setStatusText("Cargando datos locales...");
-        progressWidth.value = withTiming(0.35, { duration: 2000, easing: Easing.out(Easing.cubic) });
+        progressWidth.value = withTiming(0.35, {
+          duration: 2000,
+          easing: Easing.out(Easing.cubic),
+        });
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
         setStatusText("Preparando tu horario...");
-        progressWidth.value = withTiming(0.7, { duration: 1500, easing: Easing.out(Easing.cubic) });
+        progressWidth.value = withTiming(0.7, {
+          duration: 1500,
+          easing: Easing.out(Easing.cubic),
+        });
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         setStatusText("Organizando malla...");
-        progressWidth.value = withTiming(0.9, { duration: 1500, easing: Easing.out(Easing.cubic) });
+        progressWidth.value = withTiming(0.9, {
+          duration: 1500,
+          easing: Easing.out(Easing.cubic),
+        });
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         setStatusText("¡Listo!");
@@ -148,7 +153,10 @@ export default function IndexScreen() {
   };
 
   const handleProgress = (progress: number, status: string) => {
-    progressWidth.value = withTiming(progress, { duration: 500, easing: Easing.out(Easing.cubic) });
+    progressWidth.value = withTiming(progress, {
+      duration: 500,
+      easing: Easing.out(Easing.cubic),
+    });
     setStatusText(status);
   };
 

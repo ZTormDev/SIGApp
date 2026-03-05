@@ -11,7 +11,13 @@ import "react-native-reanimated";
 
 import { UpdateChecker } from "../components/UpdateChecker";
 import { useScreenTracking } from "../hooks/useScreenTracking";
-import { logAppOpen, removePresence, setupPresence } from "../utils/firebase";
+import {
+  endSessionTracking,
+  logAppOpen,
+  removePresence,
+  setupPresence,
+  startSessionTracking,
+} from "../utils/firebase";
 import { initNotifications } from "../utils/notifications";
 import {
   ThemeProvider as CustomThemeProvider,
@@ -46,13 +52,13 @@ function RootNavigator() {
 
 function FirebaseInit() {
   useEffect(() => {
-    // Registrar apertura de app (first_open es automático en Firebase)
     logAppOpen();
+    startSessionTracking();
 
-    // Configurar presencia en tiempo real
     setupPresence();
 
     return () => {
+      endSessionTracking();
       removePresence();
     };
   }, []);

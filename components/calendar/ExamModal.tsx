@@ -1,21 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    Animated as RNAnimated,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  Animated as RNAnimated,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useTheme } from "../../utils/ThemeContext";
 import { initNotifications } from "../../utils/notifications";
@@ -53,16 +53,13 @@ export function ExamModal({
   const [notes, setNotes] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  // Modern Time Picker States
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedHour, setSelectedHour] = useState("08");
   const [selectedMinute, setSelectedMinute] = useState("30");
   const [activeMode, setActiveMode] = useState<"hour" | "minute">("hour");
 
-  // Subject Picker States
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
 
-  // Manual Animations
   const translateY = useRef(new RNAnimated.Value(SCREEN_HEIGHT)).current;
   const opacity = useRef(new RNAnimated.Value(0)).current;
   const [isRendering, setIsRendering] = useState(false);

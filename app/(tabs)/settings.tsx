@@ -3,28 +3,34 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  getScheduledNotificationCount,
-  sendTestNotification,
+    ANALYTICS_EVENTS,
+    ANALYTICS_PARAMS,
+    USER_PROPERTIES,
+} from "../../constants/analytics";
+import { logEvent, setUserProperties } from "../../utils/firebase";
+import {
+    getScheduledNotificationCount,
+    sendTestNotification,
 } from "../../utils/notifications";
 import {
-  clearCredentials,
-  clearCurriculumSyncTime,
-  clearProfile,
-  clearSchedule,
-  clearSyncTime,
+    clearCredentials,
+    clearCurriculumSyncTime,
+    clearProfile,
+    clearSchedule,
+    clearSyncTime,
 } from "../../utils/storage";
 import { useTheme } from "../../utils/ThemeContext";
 
@@ -35,6 +41,7 @@ export default function SettingsScreen() {
 
   const handleTestNotification = async () => {
     setTestingNotification(true);
+    logEvent(ANALYTICS_EVENTS.NOTIFICATION_TEST);
     try {
       const success = await sendTestNotification();
       if (success) {
@@ -70,6 +77,7 @@ export default function SettingsScreen() {
           text: "Actualizar",
           style: "default",
           onPress: async () => {
+            logEvent(ANALYTICS_EVENTS.DATA_REFRESH);
             await clearSyncTime();
             await clearCurriculumSyncTime();
             router.replace("/");
@@ -89,6 +97,7 @@ export default function SettingsScreen() {
           text: "Cerrar Sesión",
           style: "destructive",
           onPress: async () => {
+            logEvent(ANALYTICS_EVENTS.LOGOUT);
             await clearCredentials();
             await clearSchedule();
             await clearProfile();
@@ -139,7 +148,16 @@ export default function SettingsScreen() {
             </Text>
             <Switch
               value={theme === "dark"}
-              onValueChange={toggleTheme}
+              onValueChange={() => {
+                toggleTheme();
+                const newTheme = theme === "dark" ? "light" : "dark";
+                logEvent(ANALYTICS_EVENTS.THEME_CHANGED, {
+                  [ANALYTICS_PARAMS.THEME]: newTheme,
+                });
+                setUserProperties({
+                  [USER_PROPERTIES.THEME_PREFERENCE]: newTheme,
+                });
+              }}
               trackColor={{ false: "#D1D1D1", true: colors.primary }}
               thumbColor={Platform.OS === "ios" ? undefined : "#fff"}
             />

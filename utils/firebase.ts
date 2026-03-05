@@ -13,9 +13,17 @@ import {
     serverTimestamp,
     set,
 } from "@react-native-firebase/database";
+import Constants from "expo-constants";
 import { AppState, AppStateStatus, Platform } from "react-native";
+import {
+    ANALYTICS_EVENTS,
+    ANALYTICS_PARAMS,
+    USER_PROPERTIES,
+} from "../constants/analytics";
 
 const DEVICE_ID_KEY = "FIREBASE_DEVICE_ID";
+const LOGIN_COUNT_KEY = "ANALYTICS_LOGIN_COUNT";
+let sessionStartTime: number | null = null;
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -85,6 +93,83 @@ export async function setUserProperties(
     }
   } catch (error) {
     console.warn("[Firebase] Error setting user properties:", error);
+  }
+}
+
+// ─── Tracking de Sesión ────────────────────────────────────
+
+/**
+ * Inicia el tracking de sesión. Llama a esto cuando la app se abre o vuelve a primer plano.
+ * Registra el inicio de sesión y la versión de la app como user property.
+ */
+export async function startSessionTracking(): Promise<void> {
+  try {
+    sessionStartTime = Date.now();
+    const appVersion = Constants.expoConfig?.version || "unknown";
+
+    await setUserProperties({
+      [USER_PROPERTIES.APP_VERSION]: appVersion,
+    });
+
+    const analytics = getAnalytics();
+    await fbLogEvent(analytics, ANALYTICS_EVENTS.SESSION_START, {
+      [ANALYTICS_PARAMS.SOURCE]: "app_foreground",
+    });
+  } catch (error) {
+    console.warn("[Firebase] Error starting session tracking:", error);
+  }
+}
+
+/**
+ * Finaliza el tracking de sesión. Registra la duración total de la sesión.
+ */
+export async function endSessionTracking(): Promise<void> {
+  try {
+    if (sessionStartTime) {
+      const duration = Date.now() - sessionStartTime;
+      const analytics = getAnalytics();
+      await fbLogEvent(analytics, ANALYTICS_EVENTS.SESSION_END, {
+        [ANALYTICS_PARAMS.DURATION_MS]: duration,
+      });
+      sessionStartTime = null;
+    }
+  } catch (error) {
+    console.warn("[Firebase] Error ending session tracking:", error);
+  }
+}
+
+/**
+ * Incrementa y persiste el contador de logins del usuario.
+ * Útil para segmentar usuarios nuevos vs recurrentes en Firebase Console.
+ */
+export async function incrementLoginCount(): Promise<void> {
+  try {
+    const current = await AsyncStorage.getItem(LOGIN_COUNT_KEY);
+    const count = (parseInt(current || "0", 10) + 1).toString();
+    await AsyncStorage.setItem(LOGIN_COUNT_KEY, count);
+    await setUserProperties({
+      [USER_PROPERTIES.LOGIN_COUNT]: count,
+    });
+  } catch (error) {
+    console.warn("[Firebase] Error incrementing login count:", error);
+  }
+}
+
+/**
+ * Registra un error de la app para diagnóstico en Firebase.
+ */
+export async function logAppError(
+  errorMessage: string,
+  source: string,
+): Promise<void> {
+  try {
+    const analytics = getAnalytics();
+    await fbLogEvent(analytics, ANALYTICS_EVENTS.APP_ERROR, {
+      [ANALYTICS_PARAMS.ERROR_MESSAGE]: errorMessage.substring(0, 100),
+      [ANALYTICS_PARAMS.SOURCE]: source,
+    });
+  } catch (error) {
+    console.warn("[Firebase] Error logging app error:", error);
   }
 }
 

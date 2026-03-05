@@ -1,30 +1,38 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as MediaLibrary from "expo-media-library";
 import * as Sharing from "expo-sharing";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ViewShot from "react-native-view-shot";
 import { TodayClassWidget } from "../../components/home/TodayClassWidget";
 import { ScheduleModal } from "../../components/schedule/ScheduleModal";
+import { ANALYTICS_EVENTS, ANALYTICS_PARAMS } from "../../constants/analytics";
+import { logEvent } from "../../utils/firebase";
 import {
-  DAYS,
-  DEMO_DATA,
-  SelectedBlock,
-  SUBJECT_COLORS,
-  TIME_BLOCKS,
-  TOPE_COLOR,
+    DAYS,
+    DEMO_DATA,
+    SelectedBlock,
+    SUBJECT_COLORS,
+    TIME_BLOCKS,
+    TOPE_COLOR,
 } from "../../utils/scheduleConstants";
 import { getSchedule } from "../../utils/storage";
 import { useTheme } from "../../utils/ThemeContext";
@@ -203,7 +211,7 @@ export default function ScheduleScreen() {
       const uri = await scheduleRef.current.capture();
       return uri;
     } catch (error) {
-      console.error('Error capturing schedule:', error);
+      console.error("Error capturing schedule:", error);
       return null;
     } finally {
       setIsCapturing(false);
@@ -211,52 +219,61 @@ export default function ScheduleScreen() {
   }, []);
 
   const handleShareImage = useCallback(async () => {
+    logEvent(ANALYTICS_EVENTS.FEATURE_USED, {
+      [ANALYTICS_PARAMS.FEATURE_NAME]: "schedule_share",
+    });
     const uri = await captureSchedule();
     if (!uri) {
-      Alert.alert('Error', 'No se pudo capturar el horario.');
+      Alert.alert("Error", "No se pudo capturar el horario.");
       return;
     }
     try {
       await Sharing.shareAsync(uri, {
-        mimeType: 'image/png',
-        dialogTitle: 'Compartir Mi Horario',
+        mimeType: "image/png",
+        dialogTitle: "Compartir Mi Horario",
       });
     } catch (error) {
-      console.error('Error sharing:', error);
+      console.error("Error sharing:", error);
     }
   }, [captureSchedule]);
 
   const handleSaveImage = useCallback(async () => {
     Alert.alert(
-      '📋 Descargar Horario',
-      'Recuerda que tu horario siempre estará actualizado dentro de la app. Te recomendamos revisarlo aquí para tener la información más reciente.\n\n¿Deseas guardar una imagen de tu horario?',
+      "📋 Descargar Horario",
+      "Recuerda que tu horario siempre estará actualizado dentro de la app. Te recomendamos revisarlo aquí para tener la información más reciente.\n\n¿Deseas guardar una imagen de tu horario?",
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: "Cancelar", style: "cancel" },
         {
-          text: 'Descargar',
+          text: "Descargar",
           onPress: async () => {
+            logEvent(ANALYTICS_EVENTS.FEATURE_USED, {
+              [ANALYTICS_PARAMS.FEATURE_NAME]: "schedule_save_image",
+            });
             const uri = await captureSchedule();
             if (!uri) {
-              Alert.alert('Error', 'No se pudo capturar el horario.');
+              Alert.alert("Error", "No se pudo capturar el horario.");
               return;
             }
             try {
               const asset = await MediaLibrary.createAssetAsync(uri);
               if (asset) {
-                Alert.alert('✅ Guardado', 'Horario guardado en la galería.');
+                Alert.alert("✅ Guardado", "Horario guardado en la galería.");
               }
             } catch (error) {
-              console.error('Error saving:', error);
+              console.error("Error saving:", error);
               try {
                 const { status } = await MediaLibrary.requestPermissionsAsync();
-                if (status === 'granted') {
+                if (status === "granted") {
                   await MediaLibrary.createAssetAsync(uri);
-                  Alert.alert('✅ Guardado', 'Horario guardado en la galería.');
+                  Alert.alert("✅ Guardado", "Horario guardado en la galería.");
                 } else {
-                  Alert.alert('Permisos', 'No se otorgaron los permisos necesarios.');
+                  Alert.alert(
+                    "Permisos",
+                    "No se otorgaron los permisos necesarios.",
+                  );
                 }
               } catch (e) {
-                Alert.alert('Error', 'No se pudo guardar la imagen.');
+                Alert.alert("Error", "No se pudo guardar la imagen.");
               }
             }
           },
@@ -324,13 +341,18 @@ export default function ScheduleScreen() {
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             Mi Horario
           </Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+          <Text
+            style={[styles.headerSubtitle, { color: colors.textSecondary }]}
+          >
             Semestre 2026-1
           </Text>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
-            style={[styles.headerBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={[
+              styles.headerBtn,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
             onPress={handleSaveImage}
             disabled={isCapturing}
           >
@@ -353,7 +375,7 @@ export default function ScheduleScreen() {
       >
         <ViewShot
           ref={scheduleRef}
-          options={{ format: 'png', quality: 1 }}
+          options={{ format: "png", quality: 1 }}
           style={{ backgroundColor: colors.background, paddingBottom: 8 }}
         >
           <View style={styles.dayHeaderRow}>
@@ -373,7 +395,9 @@ export default function ScheduleScreen() {
                   <Text
                     style={[
                       styles.dayHeaderText,
-                      { color: theme === "dark" ? colors.textSecondary : "#666" },
+                      {
+                        color: theme === "dark" ? colors.textSecondary : "#666",
+                      },
                       isToday && { color: "#fff" },
                     ]}
                   >
@@ -393,10 +417,14 @@ export default function ScheduleScreen() {
               entering={FadeInDown.duration(400).delay(200 + rowIndex * 50)}
             >
               <View style={styles.timeCell}>
-                <Text style={[styles.timeBlockLabel, { color: colors.primary }]}>
+                <Text
+                  style={[styles.timeBlockLabel, { color: colors.primary }]}
+                >
                   {TIME_BLOCKS[rowIndex]?.label}
                 </Text>
-                <Text style={[styles.timeText, { color: colors.textSecondary }]}>
+                <Text
+                  style={[styles.timeText, { color: colors.textSecondary }]}
+                >
                   {TIME_BLOCKS[rowIndex]?.start}
                   {"\n"}
                   {TIME_BLOCKS[rowIndex]?.end}
@@ -407,7 +435,10 @@ export default function ScheduleScreen() {
                 .slice(0, displayedDays.length)
                 .map((cell: any, colIndex: number) => {
                   const mergeKey = `${rowIndex}-${colIndex}`;
-                  const merge = mergeMap[mergeKey] || { span: 1, hidden: false };
+                  const merge = mergeMap[mergeKey] || {
+                    span: 1,
+                    hidden: false,
+                  };
 
                   if (merge.hidden) {
                     return (
@@ -453,11 +484,11 @@ export default function ScheduleScreen() {
                               margin: 0,
                             },
                             isFilled &&
-                            color && {
-                              backgroundColor: color.bg,
-                              borderLeftWidth: 3,
-                              borderLeftColor: color.border,
-                            },
+                              color && {
+                                backgroundColor: color.bg,
+                                borderLeftWidth: 3,
+                                borderLeftColor: color.border,
+                              },
                           ]}
                         >
                           {isFilled && color && (
@@ -513,7 +544,9 @@ export default function ScheduleScreen() {
                     <TouchableOpacity
                       key={colIndex}
                       activeOpacity={isFilled ? 0.6 : 1}
-                      onPress={() => handleCellPress(cell, rowIndex, colIndex, 1)}
+                      onPress={() =>
+                        handleCellPress(cell, rowIndex, colIndex, 1)
+                      }
                       style={[
                         styles.gridCell,
                         {
@@ -521,11 +554,11 @@ export default function ScheduleScreen() {
                           backgroundColor: colors.surface,
                         },
                         isFilled &&
-                        color && {
-                          backgroundColor: color.bg,
-                          borderLeftWidth: 3,
-                          borderLeftColor: color.border,
-                        },
+                          color && {
+                            backgroundColor: color.bg,
+                            borderLeftWidth: 3,
+                            borderLeftColor: color.border,
+                          },
                       ]}
                     >
                       {isFilled && color && (
@@ -609,7 +642,7 @@ export default function ScheduleScreen() {
         selectedBlock={selectedBlock}
         onClose={() => setSelectedBlock(null)}
       />
-    </SafeAreaView >
+    </SafeAreaView>
   );
 }
 
