@@ -5,7 +5,6 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
-  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -27,9 +26,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SigaWebView from "../components/SigaWebView";
+import { parseCurriculumHtml } from "../utils/curriculumParser";
 import { parseHtmlSchedule } from "../utils/sigaApi";
 import { parseProfileHtml } from "../utils/sigaParser";
-import { saveCredentials, saveProfile, saveSchedule } from "../utils/storage";
+import { saveCredentials, saveCurriculum, saveCurriculumSyncTime, saveProfile, saveSchedule, saveSyncTime } from "../utils/storage";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -42,6 +42,7 @@ export default function LoginScreen() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [progressText, setProgressText] = useState("");
 
   const [isWebViewActive, setIsWebViewActive] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -52,6 +53,7 @@ export default function LoginScreen() {
       return;
     }
     setErrorMsg("");
+    setProgressText("Conectando con SIGA...");
     setIsLoading(true);
     setIsWebViewActive(true);
   };
@@ -59,17 +61,24 @@ export default function LoginScreen() {
   const handleWebViewSuccess = async (data: {
     scheduleHtml: string;
     profileHtml: string;
+    curriculumHtml: string;
   }) => {
     try {
+      setProgressText("Guardando datos...");
       const scheduleData = parseHtmlSchedule(data.scheduleHtml);
       const profileData = parseProfileHtml(data.profileHtml);
+      const curriculumData = parseCurriculumHtml(data.curriculumHtml);
 
       if (rememberMe) {
         await saveCredentials(rut, password, server);
       }
       await saveSchedule(scheduleData);
       await saveProfile(profileData);
+      await saveCurriculum(curriculumData);
+      await saveSyncTime();
+      await saveCurriculumSyncTime();
 
+      setProgressText("¡Listo!");
       setIsWebViewActive(false);
       setIsLoading(false);
       router.replace("/(tabs)/home");
@@ -99,14 +108,13 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ImageBackground
-        source={require("../assets/images/usm/bg_usm.jpg")}
-        style={styles.background}
-        imageStyle={{ opacity: 0.25 }}
-        blurRadius={3}
-        resizeMode="cover"
-      >
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0a1628" }}>
+      <View style={styles.background}>
+        <View style={styles.bgGradient} />
+        <View style={[styles.circle, styles.circle1]} />
+        <View style={[styles.circle, styles.circle2]} />
+        <View style={[styles.circle, styles.circle3]} />
+
         <KeyboardAvoidingView
           style={styles.container}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -115,6 +123,7 @@ export default function LoginScreen() {
             style={styles.logoContainer}
             entering={ZoomIn.duration(800).delay(200).springify()}
           >
+            <View style={styles.logoGlow} />
             <ExpoImage
               source={require("../assets/images/usm/logo-usm.svg")}
               style={styles.logo}
@@ -145,6 +154,7 @@ export default function LoginScreen() {
                       value={rut}
                       onChangeText={(t) => setRut(t.replace(/\s/g, ""))}
                       placeholder="correo institucional"
+                      placeholderTextColor="rgba(255, 255, 255, 0.4)"
                       autoCapitalize="none"
                       autoCorrect={false}
                       editable={!isLoading}
@@ -194,12 +204,12 @@ export default function LoginScreen() {
                   <Ionicons
                     name="person-circle-outline"
                     size={20}
-                    color="#666"
+                    color="rgba(255, 255, 255, 0.7)"
                   />
                   <Text style={styles.userBadgeText}>
                     {rut}@{server}
                   </Text>
-                  <Ionicons name="chevron-down" size={16} color="#666" />
+                  <Ionicons name="chevron-down" size={16} color="rgba(255, 255, 255, 0.7)" />
                 </TouchableOpacity>
 
                 <View style={styles.inputGroup}>
@@ -215,6 +225,7 @@ export default function LoginScreen() {
                         setPassword(text);
                       }}
                       placeholder="Contraseña"
+                      placeholderTextColor="rgba(255, 255, 255, 0.4)"
                       autoCapitalize="none"
                       autoCorrect={false}
                       autoComplete="off"
@@ -229,7 +240,7 @@ export default function LoginScreen() {
                       <Ionicons
                         name={showPassword ? "eye-off" : "eye"}
                         size={22}
-                        color="#666"
+                        color="rgba(255, 255, 255, 0.6)"
                       />
                     </TouchableOpacity>
                   </View>
@@ -266,7 +277,10 @@ export default function LoginScreen() {
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <ActivityIndicator color="#fff" />
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                      <ActivityIndicator color="#fff" size="small" />
+                      <Text style={styles.primaryButtonText}>{progressText}</Text>
+                    </View>
                   ) : (
                     <Text style={styles.primaryButtonText}>Iniciar Sesión</Text>
                   )}
@@ -285,12 +299,13 @@ export default function LoginScreen() {
                   server={server}
                   onCompleted={handleWebViewSuccess}
                   onError={handleWebViewError}
+                  onProgress={(prog, txt) => setProgressText(txt)}
                 />
               </Animated.View>
             )}
           </Animated.View>
         </KeyboardAvoidingView>
-      </ImageBackground>
+      </View>
     </SafeAreaView>
   );
 }
@@ -298,48 +313,83 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#f4f4f9",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#0a1628",
+  },
+  bgGradient: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#0a1628",
+  },
+  circle: {
+    position: "absolute",
+    borderRadius: 999,
+  },
+  circle1: {
+    width: 300,
+    height: 300,
+    backgroundColor: "rgba(0, 56, 118, 0.3)",
+    top: -80,
+    right: -60,
+  },
+  circle2: {
+    width: 200,
+    height: 200,
+    backgroundColor: "rgba(0, 90, 180, 0.15)",
+    bottom: 120,
+    left: -50,
+  },
+  circle3: {
+    width: 150,
+    height: 150,
+    backgroundColor: "rgba(30, 120, 220, 0.1)",
+    top: "40%",
+    right: -30,
   },
   container: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
     width: "100%",
+    zIndex: 10,
   },
   logoContainer: {
     alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 40,
+    backgroundColor: "rgba(27, 123, 219, 0.75)",
+    borderRadius: 100,
+    paddingHorizontal: 25,
+    paddingVertical: 5,
+  },
+  logoGlow: {
     position: "absolute",
-    top: -100,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "rgba(0, 90, 180, 0.15)",
   },
   logo: {
-    width: Dimensions.get("window").width * 0.7,
-    height: 100,
+    width: Dimensions.get("window").width * 0.6,
+    height: 80,
   },
   card: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
     padding: 24,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 8,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     width: "100%",
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: "#ffffff",
     textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#666",
+    color: "rgba(255, 255, 255, 0.5)",
     textAlign: "center",
     marginBottom: 32,
   },
@@ -347,18 +397,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f0f0f0",
-    paddingVertical: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
     alignSelf: "center",
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   userBadgeText: {
     fontSize: 14,
-    color: "#333",
+    color: "#ffffff",
     fontWeight: "500",
     marginHorizontal: 8,
   },
@@ -372,37 +422,37 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#333",
+    color: "rgba(255, 255, 255, 0.8)",
     marginBottom: 8,
   },
   input: {
-    height: 50,
+    height: 52,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 8,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: "#333",
-    backgroundColor: "#f9f9f9",
+    color: "#ffffff",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
   },
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 8,
-    backgroundColor: "#f9f9f9",
-    height: 50,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    height: 52,
   },
   passwordInput: {
     flex: 1,
     height: "100%",
     paddingHorizontal: 16,
     fontSize: 16,
-    color: "#333",
+    color: "#ffffff",
   },
   eyeButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
@@ -414,17 +464,17 @@ const styles = StyleSheet.create({
     borderRightWidth: 0,
   },
   serverSelector: {
-    height: 50,
-    backgroundColor: "#E3EFF9",
+    height: 52,
+    backgroundColor: "rgba(59, 130, 246, 0.15)",
     justifyContent: "center",
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#B3D4F0",
-    borderTopRightRadius: 8,
-    borderBottomRightRadius: 8,
+    borderColor: "rgba(59, 130, 246, 0.3)",
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
   },
   serverText: {
-    color: "#003876",
+    color: "#3b82f6",
     fontWeight: "600",
     fontSize: 14,
   },
@@ -436,63 +486,46 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 20,
     height: 20,
-    borderWidth: 2,
-    borderColor: "#003876",
-    borderRadius: 4,
-    marginRight: 8,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 6,
+    marginRight: 10,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
   },
   checkboxChecked: {
-    backgroundColor: "#003876",
+    backgroundColor: "#3b82f6",
+    borderColor: "#3b82f6",
   },
   checkboxLabel: {
     fontSize: 14,
-    color: "#444",
+    color: "rgba(255, 255, 255, 0.7)",
   },
   primaryButton: {
-    height: 50,
-    backgroundColor: "#003876",
-    borderRadius: 8,
+    height: 52,
+    backgroundColor: "#3b82f6",
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#3b82f6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#7BAED4",
+    backgroundColor: "rgba(59, 130, 246, 0.5)",
+    shadowOpacity: 0,
   },
   primaryButtonText: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   errorText: {
-    color: "#c0392b",
+    color: "#ef4444",
     marginBottom: 16,
     textAlign: "center",
     fontWeight: "500",
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 255, 255, 0.85)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000,
-  },
-  loadingBox: {
-    backgroundColor: "#fff",
-    padding: 24,
-    borderRadius: 16,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  loadingTextOverlay: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#333",
-    fontWeight: "600",
   },
 });

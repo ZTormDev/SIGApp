@@ -6,15 +6,16 @@ interface SigaWebViewProps {
     rut: string;
     pass: string;
     server: string;
-    onCompleted: (data: { scheduleHtml: string; profileHtml: string }) => void;
+    onCompleted: (data: { scheduleHtml: string; profileHtml: string; curriculumHtml: string }) => void;
     onError: (msg: string) => void;
+    onProgress?: (progress: number, text: string) => void;
 }
 
-export default function SigaWebView({ rut, pass, server, onCompleted, onError }: SigaWebViewProps) {
+export default function SigaWebView({ rut, pass, server, onCompleted, onError, onProgress }: SigaWebViewProps) {
     const webViewRef = useRef<WebView>(null);
     const [step, setStep] = useState(0);
     const completedRef = useRef(false);
-    const htmlDataRef = useRef({ schedule: '', profile: '' });
+    const htmlDataRef = useRef({ schedule: '', profile: '', curriculum: '' });
 
     const handleNavigationStateChange = useCallback((navState: any) => {
         const url = navState.url;
@@ -22,6 +23,7 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
         if (!url || completedRef.current) return;
 
         if (step === 0 && !navState.loading && (url.includes('valida_login') || url.includes('home'))) {
+            if (onProgress) onProgress(0.1, "Iniciando sesión en SIGA...");
             const js = `
                 try {
                     var loginField = document.getElementsByName('login')[0];
@@ -47,6 +49,7 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
                 return;
             }
             if (url.includes('sistemas') || url.includes('menu')) {
+                if (onProgress) onProgress(0.3, "Buscando asignaturas...");
                 setStep(2);
                 webViewRef.current?.injectJavaScript(`
                     window.location.href = '/pag/sistinsc/listados/insc_ListHorarioPersonal.jsp?tipo_inscripcion=2&profesor=0&ano=2026&semestre=1&m=0';
@@ -86,6 +89,7 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
                             if (txt2 && txt3 && txt2.length > 500) {
                                 clearInterval(interval);
                                 window.ReactNativeWebView.postMessage('STATE:FICHA:' + txt2 + '\\n\\n' + txt3);
+                                window.location.href = '/pag/sistinsc/insc_plan_frameset.jsp';
                                 return;
                             }
                         }
@@ -102,7 +106,53 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
             `;
             webViewRef.current?.injectJavaScript(extractFramesJs);
         }
-    }, [step, rut, pass, server, onCompleted, onError]);
+
+        else if (step === 4 && url.includes('insc_plan_frameset')) {
+            setStep(5);
+            setTimeout(() => {
+                if (completedRef.current) return;
+                const extractJs = `
+                  var attempts = 0;
+                  var maxAttempts = 20;
+                  var interval = setInterval(function() {
+                    try {
+                      for (var i = 0; i < window.frames.length; i++) {
+                        try {
+                          var f = window.frames[i];
+                          if (f && f.document && f.document.readyState === 'complete') {
+                            var fhtml = f.document.documentElement.outerHTML;
+                            if (fhtml && fhtml.includes('cod_asign') && fhtml.includes('Semestre')) {
+                              clearInterval(interval);
+                              window.ReactNativeWebView.postMessage('STATE:CURRICULUM:' + fhtml);
+                              return;
+                            }
+                          }
+                        } catch(e2) {}
+                      }
+                      try {
+                        var frame6 = window.frames['frame6'];
+                        if (frame6 && frame6.document && frame6.document.readyState === 'complete') {
+                          var html = frame6.document.documentElement.outerHTML;
+                          if (html && html.length > 500 && html.includes('Semestre')) {
+                            clearInterval(interval);
+                            window.ReactNativeWebView.postMessage('STATE:CURRICULUM:' + html);
+                            return;
+                          }
+                        }
+                      } catch(e3) {}
+                    } catch(e) {}
+                    attempts++;
+                    if (attempts >= maxAttempts) {
+                      clearInterval(interval);
+                      window.ReactNativeWebView.postMessage('ERROR:Timeout extracting curriculum frames');
+                    }
+                  }, 1500);
+                  true;
+                `;
+                webViewRef.current?.injectJavaScript(extractJs);
+            }, 2000);
+        }
+    }, [step, rut, pass, server, onCompleted, onError, onProgress]);
 
     const handleMessage = useCallback((event: any) => {
         const msg = event.nativeEvent.data;
@@ -113,17 +163,22 @@ export default function SigaWebView({ rut, pass, server, onCompleted, onError }:
             onError(msg.substring(6));
         } else if (msg.startsWith('STATE:HORARIO:')) {
             htmlDataRef.current.schedule = msg.substring(14);
+            if (onProgress) onProgress(0.5, "Asignaturas obtenidas...");
         } else if (msg.startsWith('STATE:FICHA:')) {
             htmlDataRef.current.profile = msg.substring(12);
+            if (onProgress) onProgress(0.75, "Perfil académico obtenido...");
+        } else if (msg.startsWith('STATE:CURRICULUM:')) {
+            htmlDataRef.current.curriculum = msg.substring(17);
+            if (onProgress) onProgress(0.95, "Malla curricular obtenida...");
 
-            // All data collected
             completedRef.current = true;
             onCompleted({
                 scheduleHtml: htmlDataRef.current.schedule,
-                profileHtml: htmlDataRef.current.profile
+                profileHtml: htmlDataRef.current.profile,
+                curriculumHtml: htmlDataRef.current.curriculum
             });
         }
-    }, [onCompleted, onError]);
+    }, [onCompleted, onError, onProgress]);
 
     return (
         <View style={{ width: 0, height: 0, opacity: 0 }}>

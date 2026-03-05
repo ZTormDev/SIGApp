@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../utils/ThemeContext';
 
@@ -35,7 +35,7 @@ export function Calendar({ selectedDate, onDateSelect, examsDates, academicEvent
         return day === 0 ? 6 : day - 1;
     };
 
-    const renderDays = () => {
+    const renderDays = useMemo(() => {
         const year = viewDate.getFullYear();
         const month = viewDate.getMonth();
         const daysInMonth = getDaysInMonth(year, month);
@@ -123,7 +123,7 @@ export function Calendar({ selectedDate, onDateSelect, examsDates, academicEvent
                 </TouchableOpacity>
             );
         });
-    };
+    }, [viewDate, selectedDate, examsDates, academicEventDates, colors.primary, colors.text, colors.textSecondary]);
 
     return (
         <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -153,7 +153,7 @@ export function Calendar({ selectedDate, onDateSelect, examsDates, academicEvent
 
             <View style={styles.daysGrid}>
                 {(() => {
-                    const allDays = renderDays();
+                    const allDays = renderDays;
                     const rows = [];
                     for (let i = 0; i < allDays.length; i += 7) {
                         rows.push(

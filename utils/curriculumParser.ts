@@ -11,6 +11,7 @@ export interface CurriculumSubject {
     hoursAssistant: number;
     department: string;
     codAsign: string;
+    bgColor?: string;
 }
 
 export interface CurriculumData {
@@ -39,6 +40,7 @@ export function parseCurriculumHtml(html: string): CurriculumData {
         const credits = parseInt($(row).find('input[name="credito"]').val()?.toString() || '0', 10);
         const department = $(row).find('input[name="depto"]').val()?.toString().trim() || '';
         const codAsign = $(row).find('input[name="cod_asign"]').val()?.toString().trim() || '';
+        const bgColor = $(row).attr('bgcolor')?.toLowerCase() || '';
 
         // Extract hours from visible tds
         const tds = $(row).find('td');
@@ -67,6 +69,7 @@ export function parseCurriculumHtml(html: string): CurriculumData {
                 hoursAssistant,
                 department,
                 codAsign,
+                bgColor,
             });
         }
     });

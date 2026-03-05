@@ -1,4 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_URL = 'https://vra.usm.cl/wp-json/calendario/v1/eventos';
+const CACHE_KEY = 'ACADEMIC_CALENDAR_CACHE';
+const CACHE_TIME_KEY = 'ACADEMIC_CALENDAR_TIME';
 
 export interface AcademicEvent {
     id: number;
@@ -137,9 +141,20 @@ export function getCategoryLabel(category: AcademicEvent['category']): string {
     }
 }
 
-// ── Get events (always fresh from API) ──────────────────────────────
+// ── Get events (from cache if < 24h, else fresh from API) ───────────
 export async function getAcademicEvents(): Promise<AcademicEvent[]> {
     try {
+        const cachedStr = await AsyncStorage.getItem(CACHE_KEY);
+        const cachedTimeStr = await AsyncStorage.getItem(CACHE_TIME_KEY);
+
+        if (cachedStr && cachedTimeStr) {
+            const lastSync = parseInt(cachedTimeStr, 10);
+            const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+            if (Date.now() - lastSync < ONE_DAY_MS) {
+                return JSON.parse(cachedStr);
+            }
+        }
+
         const response = await fetch(API_URL, {
             headers: { 'Accept': 'application/json' },
         });
@@ -150,7 +165,7 @@ export async function getAcademicEvents(): Promise<AcademicEvent[]> {
 
         const rawEvents: any[] = await response.json();
 
-        return rawEvents
+        const processedEvents = rawEvents
             .filter((e) => isImportantEvent(e.title))
             .map((e) => {
                 const { category, icon } = categorizeEvent(e.title);
@@ -165,8 +180,22 @@ export async function getAcademicEvents(): Promise<AcademicEvent[]> {
                     icon,
                 };
             });
+
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(processedEvents));
+        await AsyncStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+
+        return processedEvents;
     } catch (error) {
         console.error('Error fetching academic calendar:', error);
+
+        // Try to return fallback cache if network fails
+        try {
+            const fallbackStr = await AsyncStorage.getItem(CACHE_KEY);
+            if (fallbackStr) {
+                return JSON.parse(fallbackStr);
+            }
+        } catch { }
+
         return [];
     }
 }

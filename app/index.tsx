@@ -14,21 +14,29 @@ import Animated, {
   FadeInDown,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
-  withTiming,
+  withTiming
 } from "react-native-reanimated";
+import { parseCurriculumHtml } from "../utils/curriculumParser";
 import { parseHtmlSchedule } from "../utils/sigaApi";
 import { parseProfileHtml } from "../utils/sigaParser";
 import {
   getCredentials,
+  getCurriculum,
+  getLastCurriculumSyncTime,
+  getLastSyncTime,
   getProfile,
   getSchedule,
   hasAcceptedDisclaimer,
+  saveCurriculum,
+  saveCurriculumSyncTime,
   saveProfile,
   saveSchedule,
+  saveSyncTime,
 } from "../utils/storage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+import { LOADING_TIPS } from "../constants/Tips";
 
 export default function IndexScreen() {
   const router = useRouter();
@@ -41,16 +49,15 @@ export default function IndexScreen() {
   const [needsSync, setNeedsSync] = useState(false);
   const [syncFallbackPath, setSyncFallbackPath] = useState<string | null>(null);
   const [statusText, setStatusText] = useState("Iniciando...");
+  const [currentTip, setCurrentTip] = useState("");
 
   // Animated progress bar
   const progressWidth = useSharedValue(0);
 
+  // Setup progress initially empty
   useEffect(() => {
-    progressWidth.value = withRepeat(
-      withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true,
-    );
+    progressWidth.value = 0;
+    setCurrentTip(LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)]);
   }, []);
 
   const progressStyle = useAnimatedStyle(() => ({
@@ -59,8 +66,6 @@ export default function IndexScreen() {
 
   useEffect(() => {
     async function checkAuthState() {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-
       setStatusText("Verificando sesión...");
       const { rut, pass, server } = await getCredentials();
       const schedule = await getSchedule();
@@ -72,12 +77,35 @@ export default function IndexScreen() {
         return;
       }
 
-      if (rut && pass) {
+      const lastSync = await getLastSyncTime();
+      const lastCurriculumSync = await getLastCurriculumSyncTime();
+      const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+      const needsCacheUpdate = !lastSync || !lastCurriculumSync || (Date.now() - lastSync > ONE_DAY_MS) || (Date.now() - lastCurriculumSync > ONE_DAY_MS);
+      const isMissingData = !schedule || !profile || !(await getCurriculum());
+
+      if (rut && pass && (needsCacheUpdate || isMissingData)) {
         setStatusText("Conectando con SIGA...");
         setAuthData({ rut, pass, server });
         setSyncFallbackPath(schedule || profile ? "/(tabs)/home" : "/login");
         setNeedsSync(true);
       } else if (schedule || profile) {
+        // Fake loading flow for cached data so tips can be read
+        setStatusText("Cargando datos locales...");
+        progressWidth.value = withTiming(0.35, { duration: 2000, easing: Easing.out(Easing.cubic) });
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        setStatusText("Preparando tu horario...");
+        progressWidth.value = withTiming(0.7, { duration: 1500, easing: Easing.out(Easing.cubic) });
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        setStatusText("Organizando malla...");
+        progressWidth.value = withTiming(0.9, { duration: 1500, easing: Easing.out(Easing.cubic) });
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        setStatusText("¡Listo!");
+        progressWidth.value = withTiming(1, { duration: 400 });
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
         router.replace("/(tabs)/home");
       } else {
         router.replace("/login");
@@ -90,23 +118,38 @@ export default function IndexScreen() {
   const handleSyncSuccess = async (data: {
     scheduleHtml: string;
     profileHtml: string;
+    curriculumHtml: string;
   }) => {
     try {
-      setStatusText("Sincronizando datos...");
+      setStatusText("Guardando información...");
+      progressWidth.value = withTiming(0.98, { duration: 400 });
+
       const scheduleData = parseHtmlSchedule(data.scheduleHtml);
       const profileData = parseProfileHtml(data.profileHtml);
+      const curriculumData = parseCurriculumHtml(data.curriculumHtml);
 
       await saveSchedule(scheduleData);
       await saveProfile(profileData);
+      await saveCurriculum(curriculumData);
+
+      await saveSyncTime();
+      await saveCurriculumSyncTime();
 
       setStatusText("¡Listo!");
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      progressWidth.value = withTiming(1, { duration: 200 });
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
       setNeedsSync(false);
       router.replace("/(tabs)/home");
     } catch (error) {
       console.error("[Splash] Sync Parsing Error:", error);
       handleSyncError();
     }
+  };
+
+  const handleProgress = (progress: number, status: string) => {
+    progressWidth.value = withTiming(progress, { duration: 500, easing: Easing.out(Easing.cubic) });
+    setStatusText(status);
   };
 
   const handleSyncError = () => {
@@ -140,7 +183,6 @@ export default function IndexScreen() {
             source={require("../assets/images/usm/logo-usm.svg")}
             style={styles.logo}
             contentFit="contain"
-            tintColor="#ffffff"
           />
         </Animated.View>
 
@@ -164,6 +206,15 @@ export default function IndexScreen() {
           </View>
 
           <Text style={styles.statusText}>{statusText}</Text>
+
+          {currentTip ? (
+            <Animated.Text
+              entering={FadeIn.delay(800).duration(800)}
+              style={styles.tipText}
+            >
+              {currentTip}
+            </Animated.Text>
+          ) : null}
         </Animated.View>
       </View>
 
@@ -186,6 +237,7 @@ export default function IndexScreen() {
             server={authData.server}
             onCompleted={handleSyncSuccess}
             onError={handleSyncError}
+            onProgress={handleProgress}
           />
         </View>
       )}
@@ -237,6 +289,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 32,
+    backgroundColor: "rgba(27, 123, 219, 0.75)",
+    borderRadius: 100,
+    paddingHorizontal: 25,
+    paddingVertical: 5,
   },
   logoGlow: {
     position: "absolute",
@@ -246,8 +302,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 90, 180, 0.15)",
   },
   logo: {
-    width: SCREEN_WIDTH * 0.55,
-    height: 100,
+    width: Dimensions.get("window").width * 0.6,
+    height: 80,
   },
   titleContainer: {
     alignItems: "center",
@@ -288,6 +344,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "rgba(255, 255, 255, 0.35)",
     letterSpacing: 0.3,
+  },
+  tipText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.6)",
+    textAlign: "center",
+    paddingHorizontal: 20,
+    marginTop: 10,
+    lineHeight: 18,
   },
   footer: {
     paddingBottom: 40,

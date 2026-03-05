@@ -14,6 +14,9 @@ const PROFILE_KEY = 'USER_PROFILE';
 const EXAMS_KEY = 'USER_EXAMS';
 const DISCLAIMER_KEY = 'HAS_ACCEPTED_DISCLAIMER';
 const CURRICULUM_KEY = 'USER_CURRICULUM';
+const SYNC_TIME_KEY = 'LAST_SYNC_TIME';
+const CURRICULUM_SYNC_TIME_KEY = 'LAST_CURRICULUM_SYNC_TIME';
+
 
 const secureSetItem = async (key: string, value: string) => {
     if (Platform.OS === 'web' || !SecureStore) {
@@ -201,3 +204,42 @@ export async function getCurriculum(): Promise<any | null> {
 export async function clearCurriculum() {
     await AsyncStorage.removeItem(CURRICULUM_KEY);
 }
+
+export async function saveSyncTime() {
+    try {
+        await AsyncStorage.setItem(SYNC_TIME_KEY, Date.now().toString());
+    } catch { }
+}
+
+export async function getLastSyncTime(): Promise<number | null> {
+    try {
+        const val = await AsyncStorage.getItem(SYNC_TIME_KEY);
+        return val ? parseInt(val, 10) : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function saveCurriculumSyncTime() {
+    try {
+        await AsyncStorage.setItem(CURRICULUM_SYNC_TIME_KEY, Date.now().toString());
+    } catch { }
+}
+
+export async function getLastCurriculumSyncTime(): Promise<number | null> {
+    try {
+        const val = await AsyncStorage.getItem(CURRICULUM_SYNC_TIME_KEY);
+        return val ? parseInt(val, 10) : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function clearSyncTime() {
+    await AsyncStorage.removeItem(SYNC_TIME_KEY);
+}
+
+export async function clearCurriculumSyncTime() {
+    await AsyncStorage.removeItem(CURRICULUM_SYNC_TIME_KEY);
+}
+

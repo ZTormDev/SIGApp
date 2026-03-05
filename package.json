@@ -1,7 +1,7 @@
 {
   "name": "miusm",
   "main": "expo-router/entry",
-  "version": "1.0.3",
+  "version": "1.2.0",
   "scripts": {
     "start": "expo start",
     "build": "TMPDIR=/home/ztorm/tmp-eas-build npx eas build --profile production --platform android --local --output ./builds/miusm-$(node -p \"require('./package.json').version\").apk",

@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import Animated, {
   FadeInDown,
-  Layout
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar } from "../../components/calendar/Calendar";
@@ -242,8 +241,7 @@ export default function CalendarScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         <Animated.View
-          entering={FadeInDown.duration(400).springify()}
-          layout={Layout.springify()}
+          entering={FadeInDown.duration(400)}
         >
           <Calendar
             selectedDate={selectedDate}
@@ -253,7 +251,7 @@ export default function CalendarScreen() {
           />
         </Animated.View>
 
-        <Animated.View layout={Layout.springify()} style={styles.sectionHeader}>
+        <Animated.View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             {formatDisplayDate(selectedDate)}
           </Text>
@@ -272,7 +270,7 @@ export default function CalendarScreen() {
             activeExams.map((exam, index) => (
               <Animated.View
                 key={exam.id}
-                entering={FadeInDown.delay(index * 100).springify()}
+                entering={FadeInDown.delay(index * 100)}
                 style={[
                   styles.examCard,
                   {
@@ -384,7 +382,7 @@ export default function CalendarScreen() {
         {/* ── Academic Events Section ── */}
         {activeAcademicEvents.length > 0 && (
           <>
-            <Animated.View layout={Layout.springify()} style={styles.sectionHeader}>
+            <Animated.View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Calendario USM
               </Text>
@@ -408,7 +406,7 @@ export default function CalendarScreen() {
                 return (
                   <Animated.View
                     key={event.id}
-                    entering={FadeInDown.delay(index * 80).springify()}
+                    entering={FadeInDown.delay(index * 80)}
                     style={[
                       styles.examCard,
                       {

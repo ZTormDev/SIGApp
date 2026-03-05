@@ -3,26 +3,28 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-    getScheduledNotificationCount,
-    sendTestNotification,
+  getScheduledNotificationCount,
+  sendTestNotification,
 } from "../../utils/notifications";
 import {
-    clearCredentials,
-    clearProfile,
-    clearSchedule,
+  clearCredentials,
+  clearCurriculumSyncTime,
+  clearProfile,
+  clearSchedule,
+  clearSyncTime,
 } from "../../utils/storage";
 import { useTheme } from "../../utils/ThemeContext";
 
@@ -56,6 +58,25 @@ export default function SettingsScreen() {
     } finally {
       setTestingNotification(false);
     }
+  };
+
+  const handleRefreshData = () => {
+    Alert.alert(
+      "Refrescar Información",
+      "¿Estás seguro de que deseas actualizar toda tu información desde el portal SIGA? Esto tomará unos segundos y actualizará tu caché local.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Actualizar",
+          style: "default",
+          onPress: async () => {
+            await clearSyncTime();
+            await clearCurriculumSyncTime();
+            router.replace("/");
+          },
+        },
+      ],
+    );
   };
 
   const handleLogout = async () => {
@@ -182,6 +203,35 @@ export default function SettingsScreen() {
           style={styles.section}
         >
           <Text style={styles.sectionTitle}>Cuenta</Text>
+          <TouchableOpacity
+            style={[
+              styles.settingsItem,
+              {
+                backgroundColor: colors.surface,
+                shadowColor: colors.cardShadow,
+                borderColor: colors.border,
+                borderWidth: theme === "dark" ? 1 : 0,
+                marginBottom: 12,
+              },
+            ]}
+            onPress={handleRefreshData}
+          >
+            <Ionicons
+              name="sync-circle-outline"
+              size={22}
+              color={colors.primary}
+              style={{ marginRight: 12 }}
+            />
+            <Text style={[styles.settingsLabel, { color: colors.text }]}>
+              Forzar actualización
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={22} color="#F44336" />
             <Text style={styles.logoutText}>Cerrar Sesión</Text>

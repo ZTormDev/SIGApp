@@ -1,0 +1,15 @@
+export const LOADING_TIPS = [
+    "💡 Tip: Mantén presionada una clase para ver sus detalles.",
+    "💡 Tip: Puedes forzar la actualización desde Ajustes.",
+    "💡 Tip: Revisa tu progreso en la Malla Curricular.",
+    "📣 ¡Ayúdanos a crecer! Comparte MiUSM con tus compañeros.",
+    "💡 Tip: El calendario muestra feriados y certámenes.",
+    "💡 Tip: Tus datos se sincronizan automáticamente cada 24 horas.",
+    "📢 ¿Te gusta la app? ¡Compártela con tus amigos sansanos!",
+    "💡 Tip: Revisa las clases de hoy rápidamente en el Inicio.",
+    "💡 Tip: ¿Cambio de semestre? Fuerza la actualización en Ajustes.",
+    "❤️ De un sansano para sansanos. ¡Corre la voz y comparte MiUSM!",
+    "💡 Tip: Tu información de SIGA se guarda solo en tu dispositivo.",
+    "💡 Tip: Toca un evento del calendario para ver más info.",
+    "📣 ¡Recomienda MiUSM a tu grupo de estudio para coordinarse!",
+];

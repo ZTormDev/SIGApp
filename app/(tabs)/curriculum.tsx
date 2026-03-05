@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Dimensions,
@@ -19,10 +19,9 @@ import Animated, {
     withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { WebView } from "react-native-webview";
 import { useTheme } from "../../utils/ThemeContext";
-import { CurriculumData, parseCurriculumHtml } from "../../utils/curriculumParser";
-import { getCredentials, getCurriculum, getSchedule, saveCurriculum } from "../../utils/storage";
+import { CurriculumData } from "../../utils/curriculumParser";
+import { getCurriculum, getSchedule } from "../../utils/storage";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -46,15 +45,8 @@ export default function CurriculumScreen() {
 
     const [curriculum, setCurriculum] = useState<CurriculumData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isFetching, setIsFetching] = useState(false);
     const [expandedSemester, setExpandedSemester] = useState<number | null>(null);
     const [passedSubjects, setPassedSubjects] = useState<Set<string>>(new Set());
-
-    // WebView state for fetching curriculum
-    const webViewRef = useRef<WebView>(null);
-    const webViewStepRef = useRef(0);
-    const [showWebView, setShowWebView] = useState(false);
-    const fetchCompleteRef = useRef(false);
 
     // Progress animation
     const progressAnim = useSharedValue(0);
@@ -66,20 +58,14 @@ export default function CurriculumScreen() {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            // First try to load from storage
             const data = await getCurriculum();
-            console.log('[Curriculum] Cached data:', data ? 'found' : 'not found');
-            if (data && data.semesters && Object.keys(data.semesters).length > 0) {
+            if (data && data.semesters) {
                 setCurriculum(data);
                 await loadCurrentSubjects();
-                setIsLoading(false);
-                return;
             }
-
-            // No cached data, need to fetch from SIGA
-            await startFetch();
         } catch (err) {
-            console.error("[Curriculum] Error loading:", err);
+            console.error(err);
+        } finally {
             setIsLoading(false);
         }
     };
@@ -97,166 +83,6 @@ export default function CurriculumScreen() {
                 }
             }
             setPassedSubjects(currentSiglas);
-        }
-    };
-
-    const startFetch = async () => {
-        const creds = await getCredentials();
-        console.log('[Curriculum] Credentials:', creds.rut ? 'found' : 'not found');
-        if (!creds.rut || !creds.pass) {
-            setIsLoading(false);
-            return;
-        }
-        setIsFetching(true);
-        fetchCompleteRef.current = false;
-        webViewStepRef.current = 0;
-        setShowWebView(true);
-    };
-
-    // WebView navigation handler using ref to avoid stale closures
-    const handleNavStateChange = useCallback((navState: any) => {
-        const url = navState.url;
-        const step = webViewStepRef.current;
-        if (!url || fetchCompleteRef.current) return;
-
-        console.log(`[Curriculum] NavState: step=${step} loading=${navState.loading} url=${url.substring(0, 80)}`);
-
-        if (step === 0 && !navState.loading && (url.includes('valida_login') || url.includes('home'))) {
-            console.log('[Curriculum] Step 0 → Injecting login...');
-            getCredentials().then((creds) => {
-                if (!creds.rut || !creds.pass) return;
-                const js = `
-          try {
-            var loginField = document.getElementsByName('login')[0];
-            if (loginField) {
-              loginField.value = '${creds.rut?.replace(/'/g, "\\'")}';
-              document.getElementsByName('passwd')[0].value = '${creds.pass?.replace(/'/g, "\\'")}';
-              var selects = document.getElementsByName('server');
-              if(selects.length > 0) selects[0].value = '${creds.server}';
-              document.forms[0].submit();
-            }
-          } catch(e) {
-            window.ReactNativeWebView.postMessage('ERROR:' + e);
-          }
-          true;
-        `;
-                webViewRef.current?.injectJavaScript(js);
-                webViewStepRef.current = 1;
-                console.log('[Curriculum] Step → 1 (login submitted)');
-            });
-        }
-
-        else if (step === 1 && !navState.loading && !url.includes('valida_login')) {
-            if (url.includes('error') || url.includes('Login_error')) {
-                console.log('[Curriculum] Login failed!');
-                finishFetch(null);
-                return;
-            }
-            if (url.includes('sistemas') || url.includes('menu')) {
-                console.log('[Curriculum] Step 1 → Navigating to plan page...');
-                webViewStepRef.current = 2;
-                webViewRef.current?.injectJavaScript(`
-          window.location.href = '/pag/sistinsc/insc_plan_frameset.jsp';
-          true;
-        `);
-            }
-        }
-
-        else if (step === 2 && url.includes('insc_plan_frameset')) {
-            // Framesets never report loading=false, so we don't check navState.loading
-            console.log('[Curriculum] Step 2 → Plan frameset detected (loading=' + navState.loading + '), will inject after delay...');
-            webViewStepRef.current = 3;
-            // Wait a bit for frames to start loading before polling
-            setTimeout(() => {
-                if (fetchCompleteRef.current) return;
-                console.log('[Curriculum] Injecting frame extraction JS...');
-                const extractJs = `
-          var attempts = 0;
-          var maxAttempts = 20;
-          console.log('[CurriculumJS] Starting frame extraction...');
-          var interval = setInterval(function() {
-            try {
-              console.log('[CurriculumJS] Attempt ' + attempts + ', frames: ' + window.frames.length);
-              // Try all frames to find the one with curriculum data
-              for (var i = 0; i < window.frames.length; i++) {
-                try {
-                  var f = window.frames[i];
-                  if (f && f.document && f.document.readyState === 'complete') {
-                    var fhtml = f.document.documentElement.outerHTML;
-                    if (fhtml && fhtml.includes('cod_asign') && fhtml.includes('Semestre')) {
-                      clearInterval(interval);
-                      console.log('[CurriculumJS] Found curriculum in frame ' + i + ', length: ' + fhtml.length);
-                      window.ReactNativeWebView.postMessage('CURRICULUM:' + fhtml);
-                      return;
-                    }
-                  }
-                } catch(e2) {
-                  // Cross-origin frame, skip
-                }
-              }
-              // Also try named frame
-              try {
-                var frame6 = window.frames['frame6'];
-                if (frame6 && frame6.document && frame6.document.readyState === 'complete') {
-                  var html = frame6.document.documentElement.outerHTML;
-                  if (html && html.length > 500 && html.includes('Semestre')) {
-                    clearInterval(interval);
-                    console.log('[CurriculumJS] Found via frame6, length: ' + html.length);
-                    window.ReactNativeWebView.postMessage('CURRICULUM:' + html);
-                    return;
-                  }
-                }
-              } catch(e3) {}
-            } catch(e) {
-              console.log('[CurriculumJS] Error: ' + e.message);
-            }
-            attempts++;
-            if (attempts >= maxAttempts) {
-              clearInterval(interval);
-              console.log('[CurriculumJS] Timeout after ' + maxAttempts + ' attempts');
-              window.ReactNativeWebView.postMessage('ERROR:Timeout extracting curriculum frames');
-            }
-          }, 1500);
-          true;
-        `;
-                webViewRef.current?.injectJavaScript(extractJs);
-            }, 2000);
-        }
-    }, []);
-
-    const handleWebViewMessage = useCallback((event: any) => {
-        const msg = event.nativeEvent.data;
-        if (!msg || fetchCompleteRef.current) return;
-
-        console.log('[Curriculum] Message received:', msg.substring(0, 100));
-
-        if (msg.startsWith('ERROR:')) {
-            console.error('[Curriculum] WebView error:', msg);
-            finishFetch(null);
-        } else if (msg.startsWith('CURRICULUM:')) {
-            const html = msg.substring(11);
-            console.log('[Curriculum] Got curriculum HTML, length:', html.length);
-            try {
-                const data = parseCurriculumHtml(html);
-                console.log('[Curriculum] Parsed OK, semesters:', Object.keys(data.semesters).length);
-                saveCurriculum(data);
-                finishFetch(data);
-            } catch (e) {
-                console.error('[Curriculum] Error parsing:', e);
-                finishFetch(null);
-            }
-        }
-    }, []);
-
-    const finishFetch = (data: CurriculumData | null) => {
-        console.log('[Curriculum] finishFetch, data:', data ? 'success' : 'null');
-        fetchCompleteRef.current = true;
-        setShowWebView(false);
-        setIsFetching(false);
-        setIsLoading(false);
-        if (data) {
-            setCurriculum(data);
-            loadCurrentSubjects();
         }
     };
 
@@ -314,32 +140,15 @@ export default function CurriculumScreen() {
         [],
     );
 
-    if (isLoading || isFetching) {
+    if (isLoading) {
         return (
             <SafeAreaView
                 style={[styles.centerContainer, { backgroundColor: colors.background }]}
             >
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-                    {isFetching ? "Obteniendo malla de SIGA..." : "Cargando..."}
+                    Cargando información...
                 </Text>
-
-                {/* Hidden WebView for fetching */}
-                {showWebView && (
-                    <View style={{ width: 0, height: 0, opacity: 0 }}>
-                        <WebView
-                            ref={webViewRef}
-                            source={{ uri: 'https://siga.usm.cl/pag/home.jsp' }}
-                            onNavigationStateChange={handleNavStateChange}
-                            onMessage={handleWebViewMessage}
-                            javaScriptEnabled={true}
-                            domStorageEnabled={true}
-                            sharedCookiesEnabled={true}
-                            thirdPartyCookiesEnabled={true}
-                            cacheEnabled={false}
-                        />
-                    </View>
-                )}
             </SafeAreaView>
         );
     }
@@ -358,17 +167,8 @@ export default function CurriculumScreen() {
                     Sin malla curricular
                 </Text>
                 <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                    No se pudieron obtener los datos de la malla.{"\n"}Intenta abrir esta sección nuevamente.
+                    No se pudieron obtener los datos de la malla.{"\n"}Por favor, fuerza una actualización manual desde los ajustes.
                 </Text>
-                <TouchableOpacity
-                    style={[styles.retryButton, { backgroundColor: colors.primary }]}
-                    onPress={() => {
-                        setIsLoading(true);
-                        startFetch();
-                    }}
-                >
-                    <Text style={styles.retryButtonText}>Reintentar</Text>
-                </TouchableOpacity>
             </SafeAreaView>
         );
     }
