@@ -297,21 +297,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 32,
-    backgroundColor: "rgba(27, 123, 219, 0.75)",
-    borderRadius: 100,
-    paddingHorizontal: 25,
-    paddingVertical: 5,
   },
   logoGlow: {
     position: "absolute",
     width: 160,
     height: 160,
-    borderRadius: 80,
-    backgroundColor: "rgba(0, 90, 180, 0.15)",
   },
   logo: {
     width: Dimensions.get("window").width * 0.6,
-    height: 80,
+    height: 100,
   },
   titleContainer: {
     alignItems: "center",
