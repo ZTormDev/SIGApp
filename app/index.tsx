@@ -32,6 +32,8 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
+const MIN_LOAD_TIME = 2500; // ms — tiempo mínimo total del loading screen
+
 export default function IndexScreen() {
   const router = useRouter();
   const [authData, setAuthData] = useState<{
@@ -86,30 +88,37 @@ export default function IndexScreen() {
         setSyncFallbackPath(schedule || profile ? "/(tabs)/home" : "/login");
         setNeedsSync(true);
       } else if (schedule || profile) {
+        const step1 = Math.round(MIN_LOAD_TIME * 0.35);
+        const step2 = Math.round(MIN_LOAD_TIME * 0.25);
+        const step3 = Math.round(MIN_LOAD_TIME * 0.2);
+        const step4 = Math.round(MIN_LOAD_TIME * 0.2);
+
         setStatusText("Cargando datos locales...");
         progressWidth.value = withTiming(0.35, {
-          duration: 2000,
+          duration: step1,
           easing: Easing.out(Easing.cubic),
         });
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, step1));
 
         setStatusText("Preparando tu horario...");
         progressWidth.value = withTiming(0.7, {
-          duration: 1500,
+          duration: step2,
           easing: Easing.out(Easing.cubic),
         });
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await new Promise((resolve) => setTimeout(resolve, step2));
 
         setStatusText("Organizando malla...");
         progressWidth.value = withTiming(0.9, {
-          duration: 1500,
+          duration: step3,
           easing: Easing.out(Easing.cubic),
         });
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await new Promise((resolve) => setTimeout(resolve, step3));
 
         setStatusText("¡Listo!");
-        progressWidth.value = withTiming(1, { duration: 400 });
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        progressWidth.value = withTiming(1, {
+          duration: Math.round(step4 * 0.5),
+        });
+        await new Promise((resolve) => setTimeout(resolve, step4));
 
         router.replace("/(tabs)/home");
       } else {
@@ -297,21 +306,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 32,
-    backgroundColor: "rgba(27, 123, 219, 0.75)",
-    borderRadius: 100,
-    paddingHorizontal: 25,
-    paddingVertical: 5,
   },
   logoGlow: {
     position: "absolute",
     width: 160,
     height: 160,
-    borderRadius: 80,
-    backgroundColor: "rgba(0, 90, 180, 0.15)",
   },
   logo: {
     width: Dimensions.get("window").width * 0.6,
-    height: 80,
+    height: 100,
   },
   titleContainer: {
     alignItems: "center",

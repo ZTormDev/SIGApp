@@ -401,22 +401,16 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 40,
-    backgroundColor: "rgba(27, 123, 219, 0.75)",
-    borderRadius: 100,
-    paddingHorizontal: 25,
-    paddingVertical: 5,
+    marginBottom: 32,
   },
   logoGlow: {
     position: "absolute",
     width: 160,
     height: 160,
-    borderRadius: 80,
-    backgroundColor: "rgba(0, 90, 180, 0.15)",
   },
   logo: {
     width: Dimensions.get("window").width * 0.6,
-    height: 80,
+    height: 100,
   },
   card: {
     backgroundColor: "rgba(255, 255, 255, 0.03)",
